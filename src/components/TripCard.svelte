@@ -1,4 +1,7 @@
 <script lang="ts">
+  import SubwayMap from '@/components/SubwayMap.svelte'
+  import { getStationCoords } from '@/data/subwayData'
+
   let {
     trip,
     onFavoriteToggle,
@@ -13,9 +16,22 @@
     '1号线': '#E53935', '2号线': '#1A5CD6', '3号线': '#FB8C00',
     '4号线': '#43A047', '5号线': '#8E24AA', '6号线': '#00ACC1',
     '7号线': '#F4511E', '8号线': '#6D4C41', '9号线': '#5E35B1',
+    '10号线': '#00BCD4', '13号线': '#FFB300',
   }
 
   let lineColor = $derived(lineColors[trip.line] || '#1A5CD6')
+  let showMap = $state(false)
+  let hasMapData = $derived(
+    trip.type === 'metro' &&
+    getStationCoords(trip.startStation) &&
+    getStationCoords(trip.endStation)
+  )
+
+  function toggleMap() {
+    if (hasMapData) {
+      showMap = !showMap
+    }
+  }
 </script>
 
 <div class="trip-card">
@@ -24,19 +40,40 @@
     <div class="track-dot start" style="border-color: {lineColor}; background: {lineColor};"></div>
     <div class="track-dot end" style="border-color: {lineColor};"></div>
   </div>
-  <div class="trip-content">
-    <div class="trip-header">
-      <span class="line-tag" style="background: {lineColor};">{trip.line}</span>
-      <span class="type-label">{trip.type === 'bus' ? '公交' : '地铁'}</span>
-      <span class="trip-date">{trip.travelDate}</span>
+  <div class="trip-main">
+    <div class="trip-content">
+      <div class="trip-header">
+        <span class="line-tag" style="background: {lineColor};">{trip.line}</span>
+        <span class="type-label">{trip.type === 'bus' ? '公交' : '地铁'}</span>
+        <span class="trip-date">{trip.travelDate}</span>
+      </div>
+      <div class="trip-stations">
+        <span class="st-name">{trip.startStation}</span>
+        <span class="st-arrow">→</span>
+        <span class="st-name">{trip.endStation}</span>
+      </div>
+      <div class="trip-footer">
+        {#if trip.duration}
+          <span class="duration">{trip.duration} 分钟</span>
+        {/if}
+        {#if hasMapData}
+          <button class="map-toggle" onclick={toggleMap}>
+            <span class="map-icon">🗺️</span>
+            {showMap ? '收起地图' : '查看路线'}
+          </button>
+        {/if}
+      </div>
     </div>
-    <div class="trip-stations">
-      <span class="st-name">{trip.startStation}</span>
-      <span class="st-arrow">→</span>
-      <span class="st-name">{trip.endStation}</span>
-    </div>
-    {#if trip.duration}
-      <span class="duration">{trip.duration} 分钟</span>
+
+    {#if showMap && hasMapData}
+      <div class="trip-map">
+        <SubwayMap
+          startStation={trip.startStation}
+          endStation={trip.endStation}
+          lineName={trip.line}
+          height="200px"
+        />
+      </div>
     {/if}
   </div>
   <div class="trip-actions">
@@ -106,8 +143,14 @@
     margin-top: auto;
   }
 
-  .trip-content {
+  .trip-main {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .trip-content {
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -158,10 +201,45 @@
     font-size: 12px;
   }
 
+  .trip-footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
   .duration {
     font-size: 12px;
     color: var(--color-text-light);
     font-family: var(--font-mono);
+  }
+
+  .map-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    background: var(--color-primary-bg);
+    color: var(--color-primary);
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+
+  .map-toggle:hover {
+    background: var(--color-primary);
+    color: var(--color-white);
+  }
+
+  .map-icon {
+    font-size: 13px;
+  }
+
+  .trip-map {
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   }
 
   .trip-actions {

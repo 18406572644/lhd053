@@ -6,12 +6,15 @@
     fetchDurationDistribution,
     fetchLineHeatmap,
     fetchPeriodComparison,
+    fetchStationHeatmap,
+    fetchSegmentHeatmap,
   } from '@/utils/api'
   import StatsCard from '@/components/StatsCard.svelte'
   import TrendChart from '@/components/TrendChart.svelte'
   import DurationPie from '@/components/DurationPie.svelte'
   import LineBubble from '@/components/LineBubble.svelte'
   import PeriodIndicator from '@/components/PeriodIndicator.svelte'
+  import SubwayMap from '@/components/SubwayMap.svelte'
 
   let overview = $state<any>({})
   let periodData = $state<any[]>([])
@@ -22,9 +25,12 @@
   let durationDist = $state<any>({ bus: { duration: 0, count: 0 }, metro: { duration: 0, count: 0 } })
   let lineHeatmap = $state<any[]>([])
   let periodComparison = $state<any>({})
+  let stationHeatmap = $state<any[]>([])
+  let segmentHeatmap = $state<any[]>([])
   let period = $state<'day' | 'week' | 'month'>('week')
   let trendChartType = $state<'bar' | 'line'>('bar')
-  let activeTab = $state<'trend' | 'heatmap'>('trend')
+  let activeTab = $state<'trend' | 'heatmap' | 'mapHeatmap'>('trend')
+  let heatmapMode = $state<'station' | 'segment'>('station')
   let loading = $state(true)
 
   const lineColors: Record<string, string> = {
@@ -109,6 +115,24 @@
     }
   }
 
+  async function loadStationHeatmap() {
+    try {
+      const res = await fetchStationHeatmap()
+      stationHeatmap = Array.isArray(res) ? res : []
+    } catch {
+      stationHeatmap = []
+    }
+  }
+
+  async function loadSegmentHeatmap() {
+    try {
+      const res = await fetchSegmentHeatmap()
+      segmentHeatmap = Array.isArray(res) ? res : []
+    } catch {
+      segmentHeatmap = []
+    }
+  }
+
   async function loadAll() {
     loading = true
     try {
@@ -119,6 +143,8 @@
         loadDurationDistribution(),
         loadLineHeatmap(),
         loadPeriodComparison(),
+        loadStationHeatmap(),
+        loadSegmentHeatmap(),
       ])
     } finally {
       loading = false
@@ -141,6 +167,10 @@
 
   function setTrendChartType(type: 'bar' | 'line') {
     trendChartType = type
+  }
+
+  function setHeatmapMode(mode: 'station' | 'segment') {
+    heatmapMode = mode
   }
 </script>
 
@@ -274,6 +304,7 @@
           <div class="tabs">
             <button class="tab" class:active={activeTab === 'trend'} onclick={() => activeTab = 'trend'}>热门线路</button>
             <button class="tab" class:active={activeTab === 'heatmap'} onclick={() => activeTab = 'heatmap'}>线路热度</button>
+            <button class="tab" class:active={activeTab === 'mapHeatmap'} onclick={() => activeTab = 'mapHeatmap'}>热力地图</button>
           </div>
         </div>
 
@@ -316,7 +347,7 @@
               </div>
             </div>
           {/if}
-        {:else}
+        {:else if activeTab === 'heatmap'}
           {#if lineHeatmap.length === 0}
             <div class="empty-chart">暂无数据</div>
           {:else}
@@ -338,6 +369,85 @@
               <LineBubble data={lineHeatmap} />
             </div>
           {/if}
+        {:else}
+          <div class="map-heatmap-container">
+            <div class="heatmap-mode-tabs">
+              <button 
+                class="heatmap-mode-tab" 
+                class:active={heatmapMode === 'station'} 
+                onclick={() => setHeatmapMode('station')}
+              >
+                站点热力
+              </button>
+              <button 
+                class="heatmap-mode-tab" 
+                class:active={heatmapMode === 'segment'} 
+                onclick={() => setHeatmapMode('segment')}
+              >
+                站段高亮
+              </button>
+            </div>
+            {#if heatmapMode === 'station'}
+              {#if stationHeatmap.length === 0}
+                <div class="empty-chart">暂无数据</div>
+              {:else}
+                <div class="heatmap-legend">
+                  <span class="legend-label">频次低</span>
+                  <div class="legend-bar"></div>
+                  <span class="legend-label">频次高</span>
+                </div>
+                <div class="map-wrapper">
+                  <SubwayMap
+                    heatmapData={stationHeatmap.map(s => ({ lat: s.lat, lng: s.lng, count: s.count }))}
+                    showFullMap={true}
+                    height="400px"
+                  />
+                </div>
+                <div class="top-stations-list">
+                  <h4 class="top-stations-title">热门站点 TOP 5</h4>
+                  <div class="top-stations">
+                    {#each stationHeatmap.slice(0, 5) as s (s.station)}
+                      <div class="top-station-item">
+                        <span class="station-rank">{stationHeatmap.indexOf(s) + 1}</span>
+                        <span class="station-name">{s.station}</span>
+                        <span class="station-count">{s.count} 次</span>
+                      </div>
+                    {/each}
+                  </div>
+                </div>
+              {/if}
+            {:else}
+              {#if segmentHeatmap.length === 0}
+                <div class="empty-chart">暂无数据</div>
+              {:else}
+                <div class="map-wrapper">
+                  <SubwayMap
+                    highlightSegments={segmentHeatmap.slice(0, 20).map(s => ({
+                      from: s.from,
+                      to: s.to,
+                      line: s.line,
+                      weight: Math.min(12, 3 + s.count * 1.5),
+                    }))}
+                    showFullMap={true}
+                    height="400px"
+                  />
+                </div>
+                <div class="top-segments-list">
+                  <h4 class="top-stations-title">高频站段 TOP 5</h4>
+                  <div class="top-segments">
+                    {#each segmentHeatmap.slice(0, 5) as s, i (`${s.from}-${s.to}`)}
+                      <div class="top-segment-item">
+                        <span class="segment-rank">{i + 1}</span>
+                        <span class="segment-line" style="background: {s.color};">{s.line}</span>
+                        <span class="segment-route">{s.from} → {s.to}</span>
+                        <span class="segment-count">{s.count} 次</span>
+                      </div>
+                    {/each}
+                  </div>
+                </div>
+              {/if}
+            {/if}
+          </div>
         {/if}
       </div>
 
@@ -664,6 +774,133 @@
     gap: 16px;
     font-size: 12px;
     color: var(--color-text-light);
+    font-family: var(--font-mono);
+  }
+
+  .map-heatmap-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .heatmap-mode-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--color-primary-bg);
+    border-radius: var(--radius-sm);
+    padding: 2px;
+    align-self: flex-start;
+  }
+
+  .heatmap-mode-tab {
+    padding: 5px 14px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-text-light);
+    background: transparent;
+    transition: all 0.2s;
+  }
+
+  .heatmap-mode-tab.active {
+    background: var(--color-primary);
+    color: var(--color-white);
+  }
+
+  .heatmap-mode-tab:hover:not(.active) {
+    color: var(--color-primary);
+  }
+
+  .heatmap-legend {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--color-text-light);
+  }
+
+  .legend-bar {
+    width: 120px;
+    height: 10px;
+    border-radius: 5px;
+    background: linear-gradient(to right, #4CAF50, #FFEB3B, #FF9800, #F44336, #B71C1C);
+  }
+
+  .legend-label {
+    font-size: 11px;
+  }
+
+  .map-wrapper {
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .top-stations-list,
+  .top-segments-list {
+    background: var(--color-primary-bg);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+  }
+
+  .top-stations-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 10px;
+  }
+
+  .top-stations,
+  .top-segments {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .top-station-item,
+  .top-segment-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+  }
+
+  .station-rank,
+  .segment-rank {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--color-white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--color-primary);
+    font-family: var(--font-mono);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  .station-name,
+  .segment-route {
+    flex: 1;
+    font-weight: 500;
+    color: var(--color-text);
+  }
+
+  .station-count,
+  .segment-count {
+    color: var(--color-text-light);
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  .segment-line {
+    padding: 1px 8px;
+    border-radius: 10px;
+    color: var(--color-white);
+    font-size: 10px;
+    font-weight: 600;
     font-family: var(--font-mono);
   }
 </style>

@@ -90,3 +90,13 @@ export async function fetchPeriodComparison(period?: string) {
   const res = await fetch(`${BASE}/stats/period-comparison?${query}`)
   return res.json()
 }
+
+export async function fetchStationHeatmap() {
+  const res = await fetch(`${BASE}/stats/station-heatmap`)
+  return res.json()
+}
+
+export async function fetchSegmentHeatmap() {
+  const res = await fetch(`${BASE}/stats/segment-heatmap`)
+  return res.json()
+}
