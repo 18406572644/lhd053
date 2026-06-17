@@ -1,24 +1,29 @@
 <script lang="ts">
-  import { uploadTicket } from '@/utils/api'
+  import { uploadTicket, ocrRecognize } from '@/utils/api'
+  import { parseOcrText } from '@/utils/ocrParser'
 
   let { onUpload }: { onUpload?: () => void } = $props()
 
   let line = $state('')
   let startStation = $state('')
   let endStation = $state('')
-  let type = $state('bus')
+  let type = $state<'bus' | 'metro'>('bus')
   let travelDate = $state('')
   let notes = $state('')
   let file = $state<File | null>(null)
   let dragging = $state(false)
   let submitting = $state(false)
   let previewUrl = $state('')
+  let ocrLoading = $state(false)
+  let ocrCompleted = $state(false)
+  let ocrRawText = $state('')
+  let ocrError = $state('')
+  let showRawText = $state(false)
 
   function onFileChange(e: Event) {
     const input = e.target as HTMLInputElement
     if (input.files?.[0]) {
-      file = input.files[0]
-      previewUrl = URL.createObjectURL(file!)
+      handleFileSelected(input.files[0])
     }
   }
 
@@ -26,8 +31,7 @@
     e.preventDefault()
     dragging = false
     if (e.dataTransfer?.files[0]) {
-      file = e.dataTransfer.files[0]
-      previewUrl = URL.createObjectURL(file!)
+      handleFileSelected(e.dataTransfer.files[0])
     }
   }
 
@@ -38,6 +42,58 @@
 
   function onDragLeave() {
     dragging = false
+  }
+
+  async function handleFileSelected(selectedFile: File) {
+    file = selectedFile
+    previewUrl = URL.createObjectURL(selectedFile)
+    ocrCompleted = false
+    ocrError = ''
+    ocrRawText = ''
+    
+    await performOcr(selectedFile)
+  }
+
+  async function performOcr(imageFile: File) {
+    ocrLoading = true
+    ocrError = ''
+    
+    try {
+      const result = await ocrRecognize(imageFile)
+      
+      if (result.success) {
+        ocrRawText = result.rawText
+        applyOcrResult(result.parsed)
+        ocrCompleted = true
+      } else {
+        ocrError = '识别失败，请手动填写'
+      }
+    } catch (err) {
+      ocrError = 'OCR 服务暂时不可用，请手动填写'
+      console.error('OCR error:', err)
+    } finally {
+      ocrLoading = false
+    }
+  }
+
+  function applyOcrResult(parsed: {
+    line: string
+    startStation: string
+    endStation: string
+    type: 'bus' | 'metro'
+    travelDate: string
+  }) {
+    if (parsed.line) line = parsed.line
+    if (parsed.startStation) startStation = parsed.startStation
+    if (parsed.endStation) endStation = parsed.endStation
+    if (parsed.type) type = parsed.type
+    if (parsed.travelDate) travelDate = parsed.travelDate
+  }
+
+  async function retryOcr() {
+    if (file) {
+      await performOcr(file)
+    }
   }
 
   async function handleSubmit() {
@@ -54,16 +110,34 @@
 
     try {
       await uploadTicket(formData)
-      line = ''; startStation = ''; endStation = ''; type = 'bus'
-      travelDate = ''; notes = ''; file = null; previewUrl = ''
+      resetForm()
       onUpload?.()
     } finally {
       submitting = false
     }
   }
+
+  function resetForm() {
+    line = ''
+    startStation = ''
+    endStation = ''
+    type = 'bus'
+    travelDate = ''
+    notes = ''
+    file = null
+    previewUrl = ''
+    ocrCompleted = false
+    ocrRawText = ''
+    ocrError = ''
+  }
 </script>
 
 <div class="upload-panel">
+  <div class="panel-header">
+    <h3 class="panel-title">上传票根</h3>
+    <span class="panel-subtitle">智能识别线路、站点和日期</span>
+  </div>
+
   <div
     class="drop-zone"
     class:dragging
@@ -78,10 +152,36 @@
       <div class="drop-hint">
         <span class="drop-icon">📎</span>
         <p>拖拽或点击上传票根图片</p>
+        <p class="drop-tip">支持自动识别线路、站点、日期</p>
       </div>
     {/if}
     <input type="file" accept="image/*" class="file-input" onchange={onFileChange} />
   </div>
+
+  {#if ocrLoading}
+    <div class="ocr-loading">
+      <span class="loading-spinner"></span>
+      <span>正在识别票根信息...</span>
+    </div>
+  {:else if ocrError}
+    <div class="ocr-error">
+      <span>⚠️ {ocrError}</span>
+      <button class="retry-btn" onclick={retryOcr}>重试识别</button>
+    </div>
+  {:else if ocrCompleted}
+    <div class="ocr-success">
+      <span>✅ 识别完成，请确认以下信息是否正确</span>
+      <button class="toggle-raw" onclick={() => showRawText = !showRawText}>
+        {showRawText ? '隐藏' : '查看'}原始文本
+      </button>
+    </div>
+    {#if showRawText}
+      <div class="raw-text-box">
+        <p class="raw-label">识别原始文本：</p>
+        <pre class="raw-content">{ocrRawText}</pre>
+      </div>
+    {/if}
+  {/if}
 
   <div class="form-grid">
     <div class="form-item">
@@ -114,7 +214,7 @@
   </div>
 
   <button class="submit-btn" onclick={handleSubmit} disabled={submitting}>
-    {submitting ? '提交中...' : '上传票根'}
+    {submitting ? '提交中...' : (ocrCompleted ? '确认并提交' : '上传票根')}
   </button>
 </div>
 
@@ -126,13 +226,29 @@
     box-shadow: var(--shadow-sm);
   }
 
+  .panel-header {
+    margin-bottom: 16px;
+  }
+
+  .panel-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0 0 4px 0;
+  }
+
+  .panel-subtitle {
+    font-size: 12px;
+    color: var(--color-text-light);
+  }
+
   .drop-zone {
     position: relative;
     border: 2px dashed var(--color-gray-light);
     border-radius: var(--radius-sm);
     padding: 24px;
     text-align: center;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     cursor: pointer;
     transition: border-color 0.2s, background 0.2s;
   }
@@ -154,6 +270,12 @@
     margin-bottom: 8px;
   }
 
+  .drop-tip {
+    font-size: 12px;
+    color: var(--color-primary);
+    margin-top: 6px;
+  }
+
   .preview-img {
     max-height: 120px;
     border-radius: var(--radius-sm);
@@ -164,6 +286,108 @@
     inset: 0;
     opacity: 0;
     cursor: pointer;
+  }
+
+  .ocr-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px;
+    background: var(--color-primary-bg);
+    border-radius: var(--radius-sm);
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: var(--color-primary);
+  }
+
+  .loading-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--color-primary-light);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .ocr-error {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: #FFF3E0;
+    border-radius: var(--radius-sm);
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #E65100;
+  }
+
+  .retry-btn {
+    padding: 4px 10px;
+    background: #FFF8E1;
+    border: 1px solid #FFCC80;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    color: #E65100;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .retry-btn:hover {
+    background: #FFECB3;
+  }
+
+  .ocr-success {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: #E8F5E9;
+    border-radius: var(--radius-sm);
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #2E7D32;
+  }
+
+  .toggle-raw {
+    padding: 4px 10px;
+    background: #C8E6C9;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    color: #2E7D32;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .toggle-raw:hover {
+    background: #A5D6A7;
+  }
+
+  .raw-text-box {
+    padding: 12px;
+    background: var(--color-gray-lighter);
+    border-radius: var(--radius-sm);
+    margin-bottom: 12px;
+  }
+
+  .raw-label {
+    font-size: 12px;
+    color: var(--color-text-light);
+    margin: 0 0 6px 0;
+  }
+
+  .raw-content {
+    font-size: 12px;
+    color: var(--color-text);
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-family: monospace;
   }
 
   .form-grid {
@@ -205,6 +429,7 @@
   .form-item select:focus,
   .form-item textarea:focus {
     border-color: var(--color-primary);
+    outline: none;
   }
 
   .submit-btn {
@@ -215,14 +440,17 @@
     border-radius: var(--radius-sm);
     font-size: 14px;
     font-weight: 600;
+    border: none;
+    cursor: pointer;
     transition: background 0.2s;
   }
 
-  .submit-btn:hover {
+  .submit-btn:hover:not(:disabled) {
     background: var(--color-primary-light);
   }
 
   .submit-btn:disabled {
     opacity: 0.6;
+    cursor: not-allowed;
   }
 </style>

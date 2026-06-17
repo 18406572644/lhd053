@@ -100,3 +100,23 @@ export async function fetchSegmentHeatmap() {
   const res = await fetch(`${BASE}/stats/segment-heatmap`)
   return res.json()
 }
+
+export async function ocrRecognize(imageFile: File): Promise<{
+  success: boolean
+  rawText: string
+  parsed: {
+    line: string
+    startStation: string
+    endStation: string
+    type: 'bus' | 'metro'
+    travelDate: string
+  }
+}> {
+  const formData = new FormData()
+  formData.append('image', imageFile)
+  const res = await fetch(`${BASE}/ocr/recognize`, {
+    method: 'POST',
+    body: formData,
+  })
+  return res.json()
+}

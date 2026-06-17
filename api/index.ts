@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url'
 import { ticketsRouter } from './routes/tickets.js'
 import { tripsRouter } from './routes/trips.js'
 import { statsRouter } from './routes/stats.js'
+import { ocrRouter } from './routes/ocr.js'
 import './database.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -32,6 +33,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 app.use('/api/tickets', upload.single('image'), ticketsRouter)
 app.use('/api/trips', tripsRouter)
 app.use('/api/stats', statsRouter)
+app.use('/api/ocr', ocrRouter)
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`)
