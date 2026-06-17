@@ -73,3 +73,20 @@ export async function fetchTopLines(limit?: number) {
   const res = await fetch(`${BASE}/stats/top-lines?${query}`)
   return res.json()
 }
+
+export async function fetchDurationDistribution() {
+  const res = await fetch(`${BASE}/stats/duration-distribution`)
+  return res.json()
+}
+
+export async function fetchLineHeatmap() {
+  const res = await fetch(`${BASE}/stats/line-heatmap`)
+  return res.json()
+}
+
+export async function fetchPeriodComparison(period?: string) {
+  const query = new URLSearchParams()
+  if (period) query.set('period', period)
+  const res = await fetch(`${BASE}/stats/period-comparison?${query}`)
+  return res.json()
+}
