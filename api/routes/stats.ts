@@ -4,11 +4,13 @@ import { getStationCoords, findLineByStation, getRouteStations } from '../subway
 
 export const statsRouter = Router()
 
-statsRouter.get('/overview', (_req, res) => {
-  const totalTrips = (db.prepare('SELECT COUNT(*) as count FROM trips').get() as { count: number }).count
-  const totalDuration = (db.prepare('SELECT COALESCE(SUM(duration), 0) as total FROM trips').get() as { total: number }).total
-  const favoriteCount = (db.prepare('SELECT COUNT(*) as count FROM trips WHERE favorite = 1').get() as { count: number }).count
-  const lineCount = (db.prepare('SELECT COUNT(DISTINCT line) as count FROM trips').get() as { count: number }).count
+statsRouter.get('/overview', (req, res) => {
+  const city = (req.query.city as string) || 'beijing'
+  
+  const totalTrips = (db.prepare('SELECT COUNT(*) as count FROM trips WHERE city = ?').get(city) as { count: number }).count
+  const totalDuration = (db.prepare('SELECT COALESCE(SUM(duration), 0) as total FROM trips WHERE city = ?').get(city) as { total: number }).total
+  const favoriteCount = (db.prepare('SELECT COUNT(*) as count FROM trips WHERE favorite = 1 AND city = ?').get(city) as { count: number }).count
+  const lineCount = (db.prepare('SELECT COUNT(DISTINCT line) as count FROM trips WHERE city = ?').get(city) as { count: number }).count
 
   res.json({
     totalTrips,
@@ -22,9 +24,10 @@ statsRouter.get('/by-period', (req, res) => {
   const period = (req.query.period as string) || 'day'
   const startDate = req.query.startDate as string | undefined
   const endDate = req.query.endDate as string | undefined
+  const city = (req.query.city as string) || 'beijing'
 
-  const conditions: string[] = []
-  const params: unknown[] = []
+  const conditions: string[] = ['city = ?']
+  const params: unknown[] = [city]
 
   if (startDate) {
     conditions.push('travel_date >= ?')
@@ -65,24 +68,29 @@ statsRouter.get('/by-period', (req, res) => {
 
 statsRouter.get('/top-lines', (req, res) => {
   const limit = Math.max(1, Number(req.query.limit) || 5)
+  const city = (req.query.city as string) || 'beijing'
 
   const rows = db.prepare(`
     SELECT line, COUNT(*) as count
     FROM trips
+    WHERE city = ?
     GROUP BY line
     ORDER BY count DESC
     LIMIT ?
-  `).all(limit) as { line: string; count: number }[]
+  `).all(city, limit) as { line: string; count: number }[]
 
   res.json(rows)
 })
 
-statsRouter.get('/duration-distribution', (_req, res) => {
+statsRouter.get('/duration-distribution', (req, res) => {
+  const city = (req.query.city as string) || 'beijing'
+  
   const rows = db.prepare(`
     SELECT type, COALESCE(SUM(duration), 0) as totalDuration, COUNT(*) as tripCount
     FROM trips
+    WHERE city = ?
     GROUP BY type
-  `).all() as { type: string; totalDuration: number; tripCount: number }[]
+  `).all(city) as { type: string; totalDuration: number; tripCount: number }[]
 
   const result: Record<string, { duration: number; count: number }> = {}
   for (const row of rows) {
@@ -98,7 +106,9 @@ statsRouter.get('/duration-distribution', (_req, res) => {
   })
 })
 
-statsRouter.get('/line-heatmap', (_req, res) => {
+statsRouter.get('/line-heatmap', (req, res) => {
+  const city = (req.query.city as string) || 'beijing'
+  
   const rows = db.prepare(`
     SELECT 
       line, 
@@ -107,9 +117,10 @@ statsRouter.get('/line-heatmap', (_req, res) => {
       COALESCE(SUM(duration), 0) as totalDuration,
       COALESCE(AVG(duration), 0) as avgDuration
     FROM trips
+    WHERE city = ?
     GROUP BY line, type
     ORDER BY tripCount DESC
-  `).all() as { 
+  `).all(city) as { 
     line: string; 
     type: string; 
     tripCount: number; 
@@ -122,6 +133,7 @@ statsRouter.get('/line-heatmap', (_req, res) => {
 
 statsRouter.get('/period-comparison', (req, res) => {
   const period = (req.query.period as string) || 'week'
+  const city = (req.query.city as string) || 'beijing'
 
   let dateFormat: string
   let intervalCount: number
@@ -145,10 +157,11 @@ statsRouter.get('/period-comparison', (req, res) => {
       COUNT(*) as count, 
       COALESCE(SUM(duration), 0) as duration
     FROM trips
+    WHERE city = ?
     GROUP BY label
     ORDER BY label DESC
     LIMIT ?
-  `).all(intervalCount) as { label: string; count: number; duration: number }[]
+  `).all(city, intervalCount) as { label: string; count: number; duration: number }[]
 
   const sorted = rows.reverse()
 
@@ -188,8 +201,8 @@ statsRouter.get('/station-heatmap', (req, res) => {
   const rows = db.prepare(`
     SELECT start_station, end_station
     FROM trips
-    WHERE type = 'metro'
-  `).all() as { start_station: string; end_station: string }[]
+    WHERE type = 'metro' AND city = ?
+  `).all(cityId) as { start_station: string; end_station: string }[]
 
   for (const row of rows) {
     if (row.start_station) {
@@ -224,10 +237,10 @@ statsRouter.get('/segment-heatmap', (req, res) => {
   const rows = db.prepare(`
     SELECT line, start_station, end_station, COUNT(*) as count
     FROM trips
-    WHERE type = 'metro' AND start_station IS NOT NULL AND end_station IS NOT NULL
+    WHERE type = 'metro' AND start_station IS NOT NULL AND end_station IS NOT NULL AND city = ?
     GROUP BY line, start_station, end_station
     ORDER BY count DESC
-  `).all() as { line: string; start_station: string; end_station: string; count: number }[]
+  `).all(cityId) as { line: string; start_station: string; end_station: string; count: number }[]
 
   for (const row of rows) {
     const key = `${row.line}|${row.start_station}|${row.end_station}`

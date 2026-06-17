@@ -2,7 +2,7 @@
   import { fetchTrips, createTrip, toggleFavorite, deleteTrip, fetchTicketById, exportTrips } from '@/utils/api'
   import TripCard from '@/components/TripCard.svelte'
   import FilterBar from '@/components/FilterBar.svelte'
-  import { highlightTripId, openTicketId } from '@/stores/app'
+  import { highlightTripId, openTicketId, currentCity } from '@/stores/app'
 
   let trips = $state<any[]>([])
   let total = $state(0)
@@ -13,6 +13,7 @@
   let showExportMenu = $state(false)
   let exporting = $state(false)
   let filter = $state({ line: '', type: '', startDate: '', endDate: '', keyword: '' })
+  let cityId = $state($currentCity)
 
   let formLine = $state('')
   let formStart = $state('')
@@ -29,6 +30,12 @@
 
   let keywordDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
+  currentCity.subscribe((v) => {
+    cityId = v
+    page = 1
+    load()
+  })
+
   async function load() {
     loading = true
     try {
@@ -39,6 +46,7 @@
         startDate: filter.startDate,
         endDate: filter.endDate,
         keyword: filter.keyword,
+        city: cityId,
       })
       trips = res.data
       total = res.total
@@ -119,6 +127,7 @@
       type: formType,
       travelDate: formDate,
       duration: formDuration ? Number(formDuration) : null,
+      city: cityId,
     })
     formLine = ''; formStart = ''; formEnd = ''; formType = 'bus'
     formDate = ''; formDuration = ''
@@ -149,6 +158,7 @@
         startDate: filter.startDate,
         endDate: filter.endDate,
         keyword: filter.keyword,
+        city: cityId,
       })
     } catch (e) {
       console.error('导出失败', e)

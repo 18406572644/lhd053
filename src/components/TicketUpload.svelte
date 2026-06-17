@@ -1,8 +1,14 @@
 <script lang="ts">
   import { uploadTicket, ocrRecognize } from '@/utils/api'
   import { parseOcrText } from '@/utils/ocrParser'
+  import { currentCity } from '@/stores/app'
 
   let { onUpload }: { onUpload?: () => void } = $props()
+  let cityId = $state($currentCity)
+
+  currentCity.subscribe((v) => {
+    cityId = v
+  })
 
   let line = $state('')
   let startStation = $state('')
@@ -107,6 +113,7 @@
     formData.append('type', type)
     formData.append('travelDate', travelDate)
     formData.append('notes', notes)
+    formData.append('city', cityId)
 
     try {
       await uploadTicket(formData)

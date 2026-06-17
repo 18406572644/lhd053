@@ -38,6 +38,7 @@
 
   currentCity.subscribe((v) => {
     cityId = v
+    loadAll()
   })
 
   function getLineColorSafe(line: string): string {
@@ -58,7 +59,7 @@
 
   async function loadOverview() {
     try {
-      overview = await fetchStatsOverview()
+      overview = await fetchStatsOverview(cityId)
     } catch {
       overview = {}
     }
@@ -66,7 +67,7 @@
 
   async function loadPeriod() {
     try {
-      const res = await fetchStatsByPeriod(period)
+      const res = await fetchStatsByPeriod(period, undefined, undefined, cityId)
       const labels = res.labels || []
       const counts = res.counts || []
       const durations = res.durations || []
@@ -88,7 +89,7 @@
 
   async function loadTopLines() {
     try {
-      const res = await fetchTopLines(8)
+      const res = await fetchTopLines(8, cityId)
       topLines = Array.isArray(res) ? res : (res.data || [])
     } catch {
       topLines = []
@@ -97,7 +98,7 @@
 
   async function loadDurationDistribution() {
     try {
-      durationDist = await fetchDurationDistribution()
+      durationDist = await fetchDurationDistribution(cityId)
     } catch {
       durationDist = { bus: { duration: 0, count: 0 }, metro: { duration: 0, count: 0 } }
     }
@@ -105,7 +106,7 @@
 
   async function loadLineHeatmap() {
     try {
-      const res = await fetchLineHeatmap()
+      const res = await fetchLineHeatmap(cityId)
       lineHeatmap = Array.isArray(res) ? res : []
     } catch {
       lineHeatmap = []
@@ -114,7 +115,7 @@
 
   async function loadPeriodComparison() {
     try {
-      periodComparison = await fetchPeriodComparison(period === 'day' ? 'week' : period)
+      periodComparison = await fetchPeriodComparison(period === 'day' ? 'week' : period, cityId)
     } catch {
       periodComparison = {}
     }
@@ -170,11 +171,7 @@
     loadPeriodComparison()
   })
 
-  $effect(() => {
-    cityId
-    loadStationHeatmap()
-    loadSegmentHeatmap()
-  })
+
 
   function setTrendChartType(type: 'bar' | 'line') {
     trendChartType = type

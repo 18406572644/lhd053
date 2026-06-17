@@ -26,11 +26,13 @@
   }
 
   function setCity(cityId: string) {
+    console.log('切换城市:', cityId)
     currentCity.set(cityId)
     cityDropdownOpen = false
   }
 
-  function toggleDropdown() {
+  function toggleDropdown(e: Event) {
+    e.stopPropagation()
     cityDropdownOpen = !cityDropdownOpen
   }
 
@@ -65,12 +67,20 @@
           <span class="city-arrow" class:open={cityDropdownOpen}>▼</span>
         </button>
         {#if cityDropdownOpen}
-          <div class="city-dropdown">
+          <div
+            class="city-dropdown"
+            role="listbox"
+            tabindex="0"
+            onclick={(e) => e.stopPropagation()}
+            onkeydown={(e) => e.stopPropagation()}
+          >
             {#each cities as city}
               <button
+                role="option"
+                aria-selected={selectedCity === city.id}
                 class="city-option"
                 class:active={selectedCity === city.id}
-                onclick={() => setCity(city.id)}
+                onclick={(e) => { e.stopPropagation(); setCity(city.id) }}
               >
                 {city.name}
               </button>

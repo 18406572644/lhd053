@@ -3,7 +3,7 @@
   import TicketCard from '@/components/TicketCard.svelte'
   import TicketUpload from '@/components/TicketUpload.svelte'
   import FilterBar from '@/components/FilterBar.svelte'
-  import { currentPage, highlightTripId } from '@/stores/app'
+  import { currentPage, highlightTripId, currentCity } from '@/stores/app'
 
   let tickets = $state<any[]>([])
   let total = $state(0)
@@ -14,11 +14,18 @@
   let selectedTicket = $state<any>(null)
   let selectedTicketTrips = $state<any[]>([])
   let filter = $state({ line: '', type: '', startDate: '', endDate: '', keyword: '' })
+  let cityId = $state($currentCity)
 
   let lines = $derived([...new Set(tickets.map((t: any) => t.line).filter(Boolean))])
   let totalPages = $derived(Math.ceil(total / pageSize))
 
   let keywordDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
+  currentCity.subscribe((v) => {
+    cityId = v
+    page = 1
+    load()
+  })
 
   async function load() {
     loading = true
@@ -30,6 +37,7 @@
         startDate: filter.startDate,
         endDate: filter.endDate,
         keyword: filter.keyword,
+        city: cityId,
       })
       tickets = res.data
       total = res.total
@@ -73,7 +81,7 @@
     selectedTicket = t
     selectedTicketTrips = []
     try {
-      const res = await fetchTrips({ ticketId: t.id, pageSize: 50 })
+      const res = await fetchTrips({ ticketId: t.id, pageSize: 50, city: cityId })
       selectedTicketTrips = res.data
     } catch (e) {
       console.error('加载关联出行记录失败', e)

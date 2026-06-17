@@ -25,6 +25,7 @@ function mapTrip(row: Record<string, unknown>): Trip {
     duration: row.duration as number,
     notes: row.notes as string,
     favorite: Boolean(row.favorite),
+    city: row.city as string,
     createdAt: row.created_at as string,
   }
 }
@@ -33,6 +34,10 @@ function buildWhereClauses(req: any): { where: string; params: unknown[] } {
   const conditions: string[] = []
   const params: unknown[] = []
 
+  if (req.query.city) {
+    conditions.push('trips.city = ?')
+    params.push(req.query.city)
+  }
   if (req.query.keyword) {
     const keyword = `%${req.query.keyword}%`
     conditions.push('(trips.start_station LIKE ? OR trips.end_station LIKE ? OR trips.notes LIKE ?)')

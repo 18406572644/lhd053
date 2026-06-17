@@ -1,7 +1,7 @@
 const BASE = '/api'
 
 export async function fetchTickets(params: {
-  page?: number; pageSize?: number; line?: string; type?: string; startDate?: string; endDate?: string; keyword?: string
+  page?: number; pageSize?: number; line?: string; type?: string; startDate?: string; endDate?: string; keyword?: string; city?: string
 }): Promise<{ data: any[]; total: number; page: number; pageSize: number }> {
   const query = new URLSearchParams()
   if (params.page) query.set('page', String(params.page))
@@ -11,6 +11,7 @@ export async function fetchTickets(params: {
   if (params.startDate) query.set('startDate', params.startDate)
   if (params.endDate) query.set('endDate', params.endDate)
   if (params.keyword) query.set('keyword', params.keyword)
+  if (params.city) query.set('city', params.city)
   const res = await fetch(`${BASE}/tickets?${query}`)
   return res.json()
 }
@@ -26,7 +27,7 @@ export async function deleteTicket(id: number) {
 }
 
 export async function fetchTrips(params: {
-  page?: number; pageSize?: number; line?: string; type?: string; startDate?: string; endDate?: string; favorite?: string; ticketId?: number | 'null'; keyword?: string
+  page?: number; pageSize?: number; line?: string; type?: string; startDate?: string; endDate?: string; favorite?: string; ticketId?: number | 'null'; keyword?: string; city?: string
 }): Promise<{ data: any[]; total: number; page: number; pageSize: number }> {
   const query = new URLSearchParams()
   if (params.page) query.set('page', String(params.page))
@@ -38,6 +39,7 @@ export async function fetchTrips(params: {
   if (params.favorite) query.set('favorite', params.favorite)
   if (params.ticketId !== undefined) query.set('ticketId', String(params.ticketId))
   if (params.keyword) query.set('keyword', params.keyword)
+  if (params.city) query.set('city', params.city)
   const res = await fetch(`${BASE}/trips?${query}`)
   return res.json()
 }
@@ -62,39 +64,48 @@ export async function deleteTrip(id: number) {
   return res.json()
 }
 
-export async function fetchStatsOverview() {
-  const res = await fetch(`${BASE}/stats/overview`)
+export async function fetchStatsOverview(city?: string) {
+  const query = new URLSearchParams()
+  if (city) query.set('city', city)
+  const res = await fetch(`${BASE}/stats/overview?${query}`)
   return res.json()
 }
 
-export async function fetchStatsByPeriod(period: string, startDate?: string, endDate?: string) {
+export async function fetchStatsByPeriod(period: string, startDate?: string, endDate?: string, city?: string) {
   const query = new URLSearchParams({ period })
   if (startDate) query.set('startDate', startDate)
   if (endDate) query.set('endDate', endDate)
+  if (city) query.set('city', city)
   const res = await fetch(`${BASE}/stats/by-period?${query}`)
   return res.json()
 }
 
-export async function fetchTopLines(limit?: number) {
+export async function fetchTopLines(limit?: number, city?: string) {
   const query = new URLSearchParams()
   if (limit) query.set('limit', String(limit))
+  if (city) query.set('city', city)
   const res = await fetch(`${BASE}/stats/top-lines?${query}`)
   return res.json()
 }
 
-export async function fetchDurationDistribution() {
-  const res = await fetch(`${BASE}/stats/duration-distribution`)
+export async function fetchDurationDistribution(city?: string) {
+  const query = new URLSearchParams()
+  if (city) query.set('city', city)
+  const res = await fetch(`${BASE}/stats/duration-distribution?${query}`)
   return res.json()
 }
 
-export async function fetchLineHeatmap() {
-  const res = await fetch(`${BASE}/stats/line-heatmap`)
+export async function fetchLineHeatmap(city?: string) {
+  const query = new URLSearchParams()
+  if (city) query.set('city', city)
+  const res = await fetch(`${BASE}/stats/line-heatmap?${query}`)
   return res.json()
 }
 
-export async function fetchPeriodComparison(period?: string) {
+export async function fetchPeriodComparison(period?: string, city?: string) {
   const query = new URLSearchParams()
   if (period) query.set('period', period)
+  if (city) query.set('city', city)
   const res = await fetch(`${BASE}/stats/period-comparison?${query}`)
   return res.json()
 }
@@ -121,6 +132,7 @@ export async function exportTrips(params: {
   endDate?: string;
   keyword?: string;
   favorite?: string;
+  city?: string;
 }) {
   const query = new URLSearchParams()
   query.set('format', params.format)
@@ -130,6 +142,7 @@ export async function exportTrips(params: {
   if (params.endDate) query.set('endDate', params.endDate)
   if (params.keyword) query.set('keyword', params.keyword)
   if (params.favorite) query.set('favorite', params.favorite)
+  if (params.city) query.set('city', params.city)
 
   const res = await fetch(`${BASE}/export?${query}`)
   const blob = await res.blob()

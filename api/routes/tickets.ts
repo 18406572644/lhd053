@@ -14,6 +14,7 @@ function mapTicket(row: Record<string, unknown>): Ticket {
     type: row.type as 'bus' | 'metro',
     travelDate: row.travel_date as string,
     notes: row.notes as string,
+    city: row.city as string,
     createdAt: row.created_at as string,
   }
 }
@@ -26,6 +27,10 @@ ticketsRouter.get('/', (req, res) => {
   const conditions: string[] = []
   const params: unknown[] = []
 
+  if (req.query.city) {
+    conditions.push('city = ?')
+    params.push(req.query.city)
+  }
   if (req.query.keyword) {
     const keyword = `%${req.query.keyword}%`
     conditions.push('(start_station LIKE ? OR end_station LIKE ? OR notes LIKE ?)')
@@ -72,27 +77,28 @@ ticketsRouter.get('/:id', (req, res) => {
 })
 
 ticketsRouter.post('/', (req, res) => {
-  const { line, startStation, endStation, type, travelDate, notes } = req.body
+  const { line, startStation, endStation, type, travelDate, notes, city } = req.body
   const imageUrl = req.file ? `/uploads/${req.file.filename}` : ''
+  const cityValue = city || 'beijing'
 
   const result = db.prepare(`
-    INSERT INTO tickets (image_url, line, start_station, end_station, type, travel_date, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(imageUrl, line, startStation, endStation, type, travelDate, notes || '')
+    INSERT INTO tickets (image_url, line, start_station, end_station, type, travel_date, notes, city)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(imageUrl, line, startStation, endStation, type, travelDate, notes || '', cityValue)
 
   const ticketId = Number(result.lastInsertRowid)
 
   db.prepare(`
-    INSERT INTO trips (ticket_id, line, start_station, end_station, type, travel_date, duration, notes, favorite)
-    VALUES (?, ?, ?, ?, ?, ?, 0, ?, 0)
-  `).run(ticketId, line, startStation, endStation, type, travelDate, notes || '')
+    INSERT INTO trips (ticket_id, line, start_station, end_station, type, travel_date, duration, notes, favorite, city)
+    VALUES (?, ?, ?, ?, ?, ?, 0, ?, 0, ?)
+  `).run(ticketId, line, startStation, endStation, type, travelDate, notes || '', cityValue)
 
   const row = db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId) as Record<string, unknown>
   res.status(201).json(mapTicket(row))
 })
 
 ticketsRouter.put('/:id', (req, res) => {
-  const { line, startStation, endStation, type, travelDate, notes } = req.body
+  const { line, startStation, endStation, type, travelDate, notes, city } = req.body
   const id = req.params.id
 
   const existing = db.prepare('SELECT * FROM tickets WHERE id = ?').get(id) as Record<string, unknown> | undefined
@@ -102,7 +108,7 @@ ticketsRouter.put('/:id', (req, res) => {
   }
 
   db.prepare(`
-    UPDATE tickets SET line = ?, start_station = ?, end_station = ?, type = ?, travel_date = ?, notes = ?
+    UPDATE tickets SET line = ?, start_station = ?, end_station = ?, type = ?, travel_date = ?, notes = ?, city = ?
     WHERE id = ?
   `).run(
     line ?? existing.line,
@@ -111,11 +117,12 @@ ticketsRouter.put('/:id', (req, res) => {
     type ?? existing.type,
     travelDate ?? existing.travel_date,
     notes ?? existing.notes,
+    city ?? existing.city,
     id
   )
 
   db.prepare(`
-    UPDATE trips SET line = ?, start_station = ?, end_station = ?, type = ?, travel_date = ?, notes = ?
+    UPDATE trips SET line = ?, start_station = ?, end_station = ?, type = ?, travel_date = ?, notes = ?, city = ?
     WHERE ticket_id = ?
   `).run(
     line ?? existing.line,
@@ -124,6 +131,7 @@ ticketsRouter.put('/:id', (req, res) => {
     type ?? existing.type,
     travelDate ?? existing.travel_date,
     notes ?? existing.notes,
+    city ?? existing.city,
     id
   )
 

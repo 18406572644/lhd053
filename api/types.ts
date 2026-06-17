@@ -7,6 +7,7 @@ export interface Ticket {
   type: 'bus' | 'metro'
   travelDate: string
   notes: string
+  city: string
   createdAt: string
 }
 
@@ -32,6 +33,7 @@ export interface Trip {
   duration: number
   notes: string
   favorite: boolean
+  city: string
   createdAt: string
 }
 

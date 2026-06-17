@@ -25,6 +25,7 @@ function mapTrip(row: Record<string, unknown>): Trip {
     duration: row.duration as number,
     notes: row.notes as string,
     favorite: Boolean(row.favorite),
+    city: row.city as string,
     createdAt: row.created_at as string,
   }
 }
@@ -37,6 +38,10 @@ tripsRouter.get('/', (req, res) => {
   const conditions: string[] = []
   const params: unknown[] = []
 
+  if (req.query.city) {
+    conditions.push('trips.city = ?')
+    params.push(req.query.city)
+  }
   if (req.query.keyword) {
     const keyword = `%${req.query.keyword}%`
     conditions.push('(trips.start_station LIKE ? OR trips.end_station LIKE ? OR trips.notes LIKE ?)')
@@ -99,12 +104,13 @@ tripsRouter.get('/', (req, res) => {
 })
 
 tripsRouter.post('/', (req, res) => {
-  const { line, startStation, endStation, type, travelDate, duration, notes } = req.body
+  const { line, startStation, endStation, type, travelDate, duration, notes, city } = req.body
+  const cityValue = city || 'beijing'
 
   const result = db.prepare(`
-    INSERT INTO trips (ticket_id, line, start_station, end_station, type, travel_date, duration, notes, favorite)
-    VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, 0)
-  `).run(line, startStation, endStation, type, travelDate, duration || 0, notes || '')
+    INSERT INTO trips (ticket_id, line, start_station, end_station, type, travel_date, duration, notes, favorite, city)
+    VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+  `).run(line, startStation, endStation, type, travelDate, duration || 0, notes || '', cityValue)
 
   const row = db.prepare(`
     SELECT trips.*,
