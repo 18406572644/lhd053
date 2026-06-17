@@ -1,0 +1,98 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --color-primary: #1A5CD6;
+  --color-primary-light: #4A90E2;
+  --color-primary-bg: #F0F5FF;
+  --color-gray: #6B7280;
+  --color-gray-light: #E5E7EB;
+  --color-white: #FFFFFF;
+  --color-text: #1F2937;
+  --color-text-light: #6B7280;
+  --font-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  --font-sans: 'Noto Sans SC', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-text);
+  background: var(--color-primary-bg);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-gray-light);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-primary-light);
+  border-radius: 3px;
+}
+
+.ticket-perforation {
+  position: relative;
+}
+.ticket-perforation::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 4px,
+    var(--color-gray-light) 4px,
+    var(--color-gray-light) 6px,
+    transparent 6px,
+    transparent 8px
+  );
+}
+
+.metro-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--color-primary);
+  background: var(--color-white);
+  flex-shrink: 0;
+}
+.metro-dot.filled {
+  background: var(--color-primary);
+}
+
+.metro-line-connector {
+  width: 2px;
+  height: 100%;
+  background: var(--color-primary);
+  position: absolute;
+  left: 5px;
+  top: 12px;
+}
+
+button {
+  cursor: pointer;
+  font-family: var(--font-sans);
+  border: none;
+  outline: none;
+}
+
+input, select, textarea {
+  font-family: var(--font-sans);
+  outline: none;
+}
