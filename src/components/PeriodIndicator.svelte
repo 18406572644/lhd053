@@ -1,15 +1,5 @@
 <script lang="ts">
-  let {
-    period = 'week',
-    currentLabel = '',
-    previousLabel = '',
-    currentCount = 0,
-    previousCount = 0,
-    currentDuration = 0,
-    previousDuration = 0,
-    countChange = 0,
-    durationChange = 0,
-  }: {
+  const props = $props<{
     period: 'week' | 'month'
     currentLabel: string
     previousLabel: string
@@ -19,7 +9,7 @@
     previousDuration: number
     countChange: number
     durationChange: number
-  } = $props()
+  }>()
 
   const periodLabels: Record<string, string> = {
     week: '本周',
@@ -37,16 +27,16 @@
     return { text: `${sign}${value.toFixed(1)}%`, isPositive: value > 0, isZero: false }
   }
 
-  let countChangeInfo = $derived(formatChange(countChange))
-  let durationChangeInfo = $derived(formatChange(durationChange))
-  let currentPeriodLabel = $derived(periodLabels[period] || '本期')
-  let prevPeriodLabel = $derived(periodPrevLabels[period] || '上期')
+  let countChangeInfo = $derived(formatChange(props.countChange ?? 0))
+  let durationChangeInfo = $derived(formatChange(props.durationChange ?? 0))
+  let currentPeriodLabel = $derived(periodLabels[props.period ?? 'week'] || '本期')
+  let prevPeriodLabel = $derived(periodPrevLabels[props.period ?? 'week'] || '上期')
 </script>
 
 <div class="indicator-card">
   <div class="indicator-header">
     <span class="indicator-title">{currentPeriodLabel}对比</span>
-    <span class="indicator-period">{currentLabel || '--'}</span>
+    <span class="indicator-period">{props.currentLabel || '--'}</span>
   </div>
 
   <div class="indicator-body">
@@ -62,19 +52,19 @@
       </div>
       <div class="item-values">
         <div class="value-current">
-          <span class="value-number">{currentCount}</span>
+          <span class="value-number">{props.currentCount ?? 0}</span>
           <span class="value-unit">次</span>
         </div>
         <div class="value-compare">
           <span class="compare-label">{prevPeriodLabel}:</span>
-          <span class="compare-value">{previousCount}次</span>
+          <span class="compare-value">{props.previousCount ?? 0}次</span>
         </div>
       </div>
       <div class="item-progress">
         <div class="progress-bar">
           <div 
             class="progress-current" 
-            style="width: {previousCount > 0 ? Math.min(100, (currentCount / previousCount) * 100) : 100}%;"
+            style="width: {(props.previousCount ?? 0) > 0 ? Math.min(100, ((props.currentCount ?? 0) / (props.previousCount ?? 0)) * 100) : 100}%;"
           ></div>
         </div>
       </div>
@@ -94,19 +84,19 @@
       </div>
       <div class="item-values">
         <div class="value-current">
-          <span class="value-number">{currentDuration}</span>
+          <span class="value-number">{props.currentDuration ?? 0}</span>
           <span class="value-unit">分钟</span>
         </div>
         <div class="value-compare">
           <span class="compare-label">{prevPeriodLabel}:</span>
-          <span class="compare-value">{previousDuration}分钟</span>
+          <span class="compare-value">{props.previousDuration ?? 0}分钟</span>
         </div>
       </div>
       <div class="item-progress">
         <div class="progress-bar">
           <div 
             class="progress-current duration" 
-            style="width: {previousDuration > 0 ? Math.min(100, (currentDuration / previousDuration) * 100) : 100}%;"
+            style="width: {(props.previousDuration ?? 0) > 0 ? Math.min(100, ((props.currentDuration ?? 0) / (props.previousDuration ?? 0)) * 100) : 100}%;"
           ></div>
         </div>
       </div>

@@ -1,21 +1,20 @@
 <script lang="ts">
   import * as echarts from 'echarts'
 
-  let {
-    data = [],
-  }: {
-    data: Array<{
-      line: string
-      type: string
-      tripCount: number
-      totalDuration: number
-      avgDuration: number
-    }>
-  } = $props()
+  type LineHeatmapItem = {
+    line: string
+    type: string
+    tripCount: number
+    totalDuration: number
+    avgDuration: number
+  }
 
-  let chartContainer: HTMLDivElement | undefined = undefined
-  let chart: echarts.ECharts | null = $state(null)
-  let isMounted = $state(false)
+  const props = $props<{
+    data: LineHeatmapItem[]
+  }>()
+
+  let chartContainer: HTMLDivElement | undefined
+  let chart: echarts.ECharts | null = null
 
   const lineColors: Record<string, string> = {
     '1号线': '#E53935', '2号线': '#1A5CD6', '3号线': '#FB8C00',
@@ -29,21 +28,13 @@
     return lineColors[line] || '#1A5CD6'
   }
 
-  function getMaxValues() {
-    if (data.length === 0) return { maxCount: 1, maxDuration: 1, maxAvg: 1 }
-    return {
-      maxCount: Math.max(...data.map(d => d.tripCount), 1),
-      maxDuration: Math.max(...data.map(d => d.totalDuration), 1),
-      maxAvg: Math.max(...data.map(d => d.avgDuration), 1),
-    }
-  }
+  function buildOption(): echarts.EChartsOption | null {
+    const data: LineHeatmapItem[] = props.data ?? []
+    if (data.length === 0) return null
 
-  function updateChart() {
-    if (!chart || data.length === 0) return
+    const maxCount = Math.max(...data.map((d: LineHeatmapItem) => d.tripCount), 1)
 
-    const { maxCount, maxAvg } = getMaxValues()
-
-    const chartData = data.map(item => {
+    const chartData = data.map((item: LineHeatmapItem) => {
       const size = 30 + (item.tripCount / maxCount) * 50
       return [
         item.avgDuration,
@@ -55,7 +46,7 @@
       ]
     })
 
-    const option: echarts.EChartsOption = {
+    return {
       tooltip: {
         trigger: 'item',
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -147,7 +138,7 @@
         {
           type: 'scatter',
           symbolSize: (data: any) => data[2],
-          data: chartData.map((item, index) => ({
+          data: chartData.map((item: any[]) => ({
             value: item,
             itemStyle: {
               color: getLineColor(String(item[3]), String(item[4])),
@@ -179,8 +170,6 @@
         },
       ],
     }
-
-    chart.setOption(option, true)
   }
 
   function handleResize() {
@@ -189,9 +178,9 @@
 
   $effect(() => {
     if (!chartContainer) return
-    isMounted = true
     chart = echarts.init(chartContainer)
-    updateChart()
+    const option = buildOption()
+    if (option) chart.setOption(option, true)
     window.addEventListener('resize', handleResize)
 
     return () => {
@@ -202,15 +191,19 @@
   })
 
   $effect(() => {
-    if (isMounted) {
-      data
-      updateChart()
+    if (!chart) return
+    props.data
+    const option = buildOption()
+    if (option) {
+      chart.setOption(option, true)
+    } else {
+      chart.clear()
     }
   })
 </script>
 
 <div class="chart-wrapper">
-  {#if data.length === 0}
+  {#if props.data.length === 0}
     <div class="empty-chart">暂无数据</div>
   {:else}
     <div bind:this={chartContainer} class="chart-container"></div>

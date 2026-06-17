@@ -1,34 +1,30 @@
 <script lang="ts">
   import * as echarts from 'echarts'
 
-  let {
-    busDuration = 0,
-    metroDuration = 0,
-    busCount = 0,
-    metroCount = 0,
-  }: {
+  const props = $props<{
     busDuration: number
     metroDuration: number
     busCount: number
     metroCount: number
-  } = $props()
+  }>()
 
-  let chartContainer: HTMLDivElement | undefined = undefined
-  let chart: echarts.ECharts | null = $state(null)
-  let isMounted = $state(false)
+  let chartContainer: HTMLDivElement | undefined
+  let chart: echarts.ECharts | null = null
 
   const colors = {
     bus: '#FB8C00',
     metro: '#1A5CD6',
   }
 
-  function updateChart() {
-    if (!chart) return
+  function buildOption(): echarts.EChartsOption {
+    const busDuration = props.busDuration ?? 0
+    const metroDuration = props.metroDuration ?? 0
+    const busCount = props.busCount ?? 0
+    const metroCount = props.metroCount ?? 0
 
     const totalDuration = busDuration + metroDuration
-    const totalCount = busCount + metroCount
 
-    const option: echarts.EChartsOption = {
+    return {
       tooltip: {
         trigger: 'item',
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -135,8 +131,6 @@
         },
       ],
     }
-
-    chart.setOption(option, true)
   }
 
   function handleResize() {
@@ -145,9 +139,8 @@
 
   $effect(() => {
     if (!chartContainer) return
-    isMounted = true
     chart = echarts.init(chartContainer)
-    updateChart()
+    chart.setOption(buildOption())
     window.addEventListener('resize', handleResize)
 
     return () => {
@@ -158,13 +151,12 @@
   })
 
   $effect(() => {
-    if (isMounted) {
-      busDuration
-      metroDuration
-      busCount
-      metroCount
-      updateChart()
-    }
+    if (!chart) return
+    props.busDuration
+    props.metroDuration
+    props.busCount
+    props.metroCount
+    chart.setOption(buildOption(), true)
   })
 </script>
 
@@ -172,11 +164,11 @@
   <div class="chart-summary">
     <div class="summary-item">
       <span class="summary-label">总时长</span>
-      <span class="summary-value">{busDuration + metroDuration}<span class="summary-unit">分钟</span></span>
+      <span class="summary-value">{(props.busDuration ?? 0) + (props.metroDuration ?? 0)}<span class="summary-unit">分钟</span></span>
     </div>
     <div class="summary-item">
       <span class="summary-label">总次数</span>
-      <span class="summary-value">{busCount + metroCount}<span class="summary-unit">次</span></span>
+      <span class="summary-value">{(props.busCount ?? 0) + (props.metroCount ?? 0)}<span class="summary-unit">次</span></span>
     </div>
   </div>
   <div bind:this={chartContainer} class="chart-container"></div>

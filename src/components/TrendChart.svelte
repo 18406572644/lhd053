@@ -1,37 +1,28 @@
 <script lang="ts">
   import * as echarts from 'echarts'
 
-  let {
-    labels = [],
-    counts = [],
-    durations = [],
-    chartType = 'bar',
-  }: {
+  const props = $props<{
     labels: string[]
     counts: number[]
     durations: number[]
     chartType: 'bar' | 'line'
-  } = $props()
+  }>()
 
-  let chartContainer: HTMLDivElement | undefined = undefined
-  let chart: echarts.ECharts | null = $state(null)
-  let isMounted = $state(false)
+  let chartContainer: HTMLDivElement | undefined
+  let chart: echarts.ECharts | null = null
 
   const lineColors: Record<string, string> = {
     primary: '#1A5CD6',
     secondary: '#43A047',
   }
 
-  function initChart() {
-    if (!chartContainer) return
-    chart = echarts.init(chartContainer)
-    updateChart()
-  }
+  function buildOption(): echarts.EChartsOption {
+    const labels = props.labels ?? []
+    const counts = props.counts ?? []
+    const durations = props.durations ?? []
+    const chartType = props.chartType ?? 'bar'
 
-  function updateChart() {
-    if (!chart) return
-
-    const option: echarts.EChartsOption = {
+    return {
       tooltip: {
         trigger: 'axis',
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -198,8 +189,6 @@
         },
       ],
     }
-
-    chart.setOption(option, true)
   }
 
   function handleResize() {
@@ -208,9 +197,9 @@
 
   $effect(() => {
     if (!chartContainer) return
-    isMounted = true
+
     chart = echarts.init(chartContainer)
-    updateChart()
+    chart.setOption(buildOption())
     window.addEventListener('resize', handleResize)
 
     return () => {
@@ -221,13 +210,12 @@
   })
 
   $effect(() => {
-    if (isMounted) {
-      labels
-      counts
-      durations
-      chartType
-      updateChart()
-    }
+    if (!chart) return
+    props.labels
+    props.counts
+    props.durations
+    props.chartType
+    chart.setOption(buildOption(), true)
   })
 </script>
 

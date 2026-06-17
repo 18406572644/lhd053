@@ -131,9 +131,13 @@
 
   function setPeriod(p: 'day' | 'week' | 'month') {
     period = p
+  }
+
+  $effect(() => {
+    period
     loadPeriod()
     loadPeriodComparison()
-  }
+  })
 
   function setTrendChartType(type: 'bar' | 'line') {
     trendChartType = type
