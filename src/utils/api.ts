@@ -109,6 +109,42 @@ export async function fetchSegmentHeatmap() {
   return res.json()
 }
 
+export async function exportTrips(params: {
+  format: 'csv' | 'json';
+  line?: string;
+  type?: string;
+  startDate?: string;
+  endDate?: string;
+  keyword?: string;
+  favorite?: string;
+}) {
+  const query = new URLSearchParams()
+  query.set('format', params.format)
+  if (params.line) query.set('line', params.line)
+  if (params.type) query.set('type', params.type)
+  if (params.startDate) query.set('startDate', params.startDate)
+  if (params.endDate) query.set('endDate', params.endDate)
+  if (params.keyword) query.set('keyword', params.keyword)
+  if (params.favorite) query.set('favorite', params.favorite)
+
+  const res = await fetch(`${BASE}/export?${query}`)
+  const blob = await res.blob()
+  const disposition = res.headers.get('Content-Disposition')
+  let filename = `trips_${new Date().toISOString().slice(0, 10)}.${params.format}`
+  if (disposition) {
+    const match = disposition.match(/filename="?([^"]+)"?/)
+    if (match) filename = match[1]
+  }
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  window.URL.revokeObjectURL(url)
+}
+
 export async function ocrRecognize(imageFile: File): Promise<{
   success: boolean
   rawText: string

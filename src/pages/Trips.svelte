@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { fetchTrips, createTrip, toggleFavorite, deleteTrip, fetchTicketById } from '@/utils/api'
+  import { fetchTrips, createTrip, toggleFavorite, deleteTrip, fetchTicketById, exportTrips } from '@/utils/api'
   import TripCard from '@/components/TripCard.svelte'
   import FilterBar from '@/components/FilterBar.svelte'
   import { highlightTripId, openTicketId } from '@/stores/app'
@@ -10,6 +10,8 @@
   let pageSize = $state(10)
   let loading = $state(true)
   let showCreate = $state(false)
+  let showExportMenu = $state(false)
+  let exporting = $state(false)
   let filter = $state({ line: '', type: '', startDate: '', endDate: '', keyword: '' })
 
   let formLine = $state('')
@@ -135,6 +137,29 @@
   function closeTicketModal() {
     selectedTicket = null
   }
+
+  async function handleExport(format: 'csv' | 'json') {
+    exporting = true
+    showExportMenu = false
+    try {
+      await exportTrips({
+        format,
+        line: filter.line,
+        type: filter.type,
+        startDate: filter.startDate,
+        endDate: filter.endDate,
+        keyword: filter.keyword,
+      })
+    } catch (e) {
+      console.error('导出失败', e)
+    } finally {
+      exporting = false
+    }
+  }
+
+  function toggleExportMenu() {
+    showExportMenu = !showExportMenu
+  }
 </script>
 
 <div class="trips-page">
@@ -145,7 +170,24 @@
     </button>
   </div>
 
-  <FilterBar {lines} onFilter={onFilter} onKeywordChange={onKeywordChange} />
+  <div class="filter-with-export">
+    <FilterBar {lines} onFilter={onFilter} onKeywordChange={onKeywordChange} />
+    <div class="export-wrapper">
+      <button class="export-btn" onclick={toggleExportMenu} disabled={exporting}>
+        {exporting ? '导出中...' : '↓ 导出'}
+      </button>
+      {#if showExportMenu}
+        <div class="export-menu">
+          <button class="export-menu-item" onclick={() => handleExport('csv')}>
+            导出为 CSV (Excel)
+          </button>
+          <button class="export-menu-item" onclick={() => handleExport('json')}>
+            导出为 JSON
+          </button>
+        </div>
+      {/if}
+    </div>
+  </div>
 
   {#if showCreate}
     <div class="create-panel">
@@ -235,6 +277,70 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+  }
+
+  .filter-with-export {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+  }
+
+  .filter-with-export :global(.filter-bar) {
+    flex: 1;
+  }
+
+  .export-wrapper {
+    position: relative;
+  }
+
+  .export-btn {
+    padding: 8px 18px;
+    background: var(--color-white);
+    color: var(--color-primary);
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .export-btn:hover:not(:disabled) {
+    background: var(--color-primary);
+    color: var(--color-white);
+  }
+
+  .export-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .export-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    background: var(--color-white);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--color-gray-light);
+    overflow: hidden;
+    z-index: 50;
+    min-width: 160px;
+  }
+
+  .export-menu-item {
+    display: block;
+    width: 100%;
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 13px;
+    color: var(--color-text);
+    background: transparent;
+    transition: background 0.2s;
+  }
+
+  .export-menu-item:hover {
+    background: var(--color-gray-light);
   }
 
   .page-header {
