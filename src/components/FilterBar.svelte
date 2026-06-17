@@ -1,12 +1,15 @@
 <script lang="ts">
   let {
     onFilter,
+    onKeywordChange,
     lines = [],
   }: {
     onFilter?: (f: { line: string; type: string; startDate: string; endDate: string }) => void;
+    onKeywordChange?: (keyword: string) => void;
     lines?: string[];
   } = $props()
 
+  let keyword = $state('')
   let line = $state('')
   let type = $state('')
   let startDate = $state('')
@@ -17,16 +20,26 @@
   }
 
   function reset() {
-    line = ''; type = ''; startDate = ''; endDate = ''
+    keyword = ''; line = ''; type = ''; startDate = ''; endDate = ''
+    onKeywordChange?.('')
     onFilter?.({ line: '', type: '', startDate: '', endDate: '' })
+  }
+
+  function onKeywordInput(e: Event) {
+    const target = e.target as HTMLInputElement
+    onKeywordChange?.(target.value)
   }
 </script>
 
 <div class="filter-bar">
   <div class="filter-grid">
+    <div class="filter-item filter-search">
+      <label for="fb-keyword">关键词</label>
+      <input id="fb-keyword" type="text" bind:value={keyword} oninput={onKeywordInput} placeholder="站名、备注、线路名..." />
+    </div>
     <div class="filter-item">
       <label for="fb-line">线路</label>
-      <select id="fb-line" bind:value={line}>
+      <select id="fb-line" bind:value={line} onchange={apply}>
         <option value="">全部线路</option>
         {#each lines as l}
           <option value={l}>{l}</option>
@@ -35,19 +48,19 @@
     </div>
     <div class="filter-item">
       <label for="fb-type">类型</label>
-      <select id="fb-type" bind:value={type}>
+      <select id="fb-type" bind:value={type} onchange={apply}>
         <option value="">全部</option>
         <option value="bus">公交</option>
         <option value="metro">地铁</option>
       </select>
     </div>
-    <div class="filter-item">
+       <div class="filter-item">
       <label for="fb-start">开始日期</label>
-      <input id="fb-start" type="date" bind:value={startDate} />
+      <input id="fb-start" type="date" bind:value={startDate} onchange={apply} />
     </div>
     <div class="filter-item">
       <label for="fb-end">结束日期</label>
-      <input id="fb-end" type="date" bind:value={endDate} />
+      <input id="fb-end" type="date" bind:value={endDate} onchange={apply} />
     </div>
   </div>
   <div class="filter-actions">
@@ -80,6 +93,11 @@
     flex-direction: column;
     gap: 4px;
     min-width: 140px;
+  }
+
+  .filter-item.filter-search {
+    min-width: 220px;
+    flex: 1;
   }
 
   .filter-item label {

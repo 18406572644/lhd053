@@ -26,6 +26,11 @@ ticketsRouter.get('/', (req, res) => {
   const conditions: string[] = []
   const params: unknown[] = []
 
+  if (req.query.keyword) {
+    const keyword = `%${req.query.keyword}%`
+    conditions.push('(start_station LIKE ? OR end_station LIKE ? OR notes LIKE ?)')
+    params.push(keyword, keyword, keyword)
+  }
   if (req.query.line) {
     conditions.push('line = ?')
     params.push(req.query.line)

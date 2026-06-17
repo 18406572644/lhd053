@@ -10,9 +10,20 @@ export interface Ticket {
   createdAt: string
 }
 
+export interface TicketRef {
+  id: number
+  imageUrl: string
+  line: string
+  startStation: string
+  endStation: string
+  type: 'bus' | 'metro'
+  travelDate: string
+}
+
 export interface Trip {
   id: number
   ticketId: number | null
+  ticket: TicketRef | null
   line: string
   startStation: string
   endStation: string

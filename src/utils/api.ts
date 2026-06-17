@@ -1,7 +1,7 @@
 const BASE = '/api'
 
 export async function fetchTickets(params: {
-  page?: number; pageSize?: number; line?: string; type?: string; startDate?: string; endDate?: string
+  page?: number; pageSize?: number; line?: string; type?: string; startDate?: string; endDate?: string; keyword?: string
 }): Promise<{ data: any[]; total: number; page: number; pageSize: number }> {
   const query = new URLSearchParams()
   if (params.page) query.set('page', String(params.page))
@@ -10,6 +10,7 @@ export async function fetchTickets(params: {
   if (params.type) query.set('type', params.type)
   if (params.startDate) query.set('startDate', params.startDate)
   if (params.endDate) query.set('endDate', params.endDate)
+  if (params.keyword) query.set('keyword', params.keyword)
   const res = await fetch(`${BASE}/tickets?${query}`)
   return res.json()
 }
@@ -25,7 +26,7 @@ export async function deleteTicket(id: number) {
 }
 
 export async function fetchTrips(params: {
-  page?: number; pageSize?: number; line?: string; type?: string; startDate?: string; endDate?: string; favorite?: string
+  page?: number; pageSize?: number; line?: string; type?: string; startDate?: string; endDate?: string; favorite?: string; ticketId?: number | 'null'; keyword?: string
 }): Promise<{ data: any[]; total: number; page: number; pageSize: number }> {
   const query = new URLSearchParams()
   if (params.page) query.set('page', String(params.page))
@@ -35,7 +36,14 @@ export async function fetchTrips(params: {
   if (params.startDate) query.set('startDate', params.startDate)
   if (params.endDate) query.set('endDate', params.endDate)
   if (params.favorite) query.set('favorite', params.favorite)
+  if (params.ticketId !== undefined) query.set('ticketId', String(params.ticketId))
+  if (params.keyword) query.set('keyword', params.keyword)
   const res = await fetch(`${BASE}/trips?${query}`)
+  return res.json()
+}
+
+export async function fetchTicketById(id: number): Promise<any> {
+  const res = await fetch(`${BASE}/tickets/${id}`)
   return res.json()
 }
 

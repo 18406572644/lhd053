@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { fetchTickets, deleteTicket } from '@/utils/api'
+  import { fetchTickets, deleteTicket, fetchTrips } from '@/utils/api'
   import TicketCard from '@/components/TicketCard.svelte'
   import TicketUpload from '@/components/TicketUpload.svelte'
   import FilterBar from '@/components/FilterBar.svelte'
+  import { currentPage, highlightTripId } from '@/stores/app'
 
   let tickets = $state<any[]>([])
   let total = $state(0)
@@ -11,10 +12,13 @@
   let loading = $state(true)
   let showUpload = $state(false)
   let selectedTicket = $state<any>(null)
-  let filter = $state({ line: '', type: '', startDate: '', endDate: '' })
+  let selectedTicketTrips = $state<any[]>([])
+  let filter = $state({ line: '', type: '', startDate: '', endDate: '', keyword: '' })
 
   let lines = $derived([...new Set(tickets.map((t: any) => t.line).filter(Boolean))])
   let totalPages = $derived(Math.ceil(total / pageSize))
+
+  let keywordDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
   async function load() {
     loading = true
@@ -25,6 +29,7 @@
         type: filter.type,
         startDate: filter.startDate,
         endDate: filter.endDate,
+        keyword: filter.keyword,
       })
       tickets = res.data
       total = res.total
@@ -38,9 +43,20 @@
   })
 
   function onFilter(f: { line: string; type: string; startDate: string; endDate: string }) {
-    filter = f
+    filter = { ...filter, ...f }
     page = 1
     load()
+  }
+
+  function onKeywordChange(keyword: string) {
+    filter = { ...filter, keyword }
+    page = 1
+    if (keywordDebounceTimer) {
+      clearTimeout(keywordDebounceTimer)
+    }
+    keywordDebounceTimer = setTimeout(() => {
+      load()
+    }, 300)
   }
 
   function onPageChange(p: number) {
@@ -53,12 +69,26 @@
     load()
   }
 
-  function selectTicket(t: any) {
+  async function selectTicket(t: any) {
     selectedTicket = t
+    selectedTicketTrips = []
+    try {
+      const res = await fetchTrips({ ticketId: t.id, pageSize: 50 })
+      selectedTicketTrips = res.data
+    } catch (e) {
+      console.error('加载关联出行记录失败', e)
+    }
   }
 
   function closeModal() {
     selectedTicket = null
+    selectedTicketTrips = []
+  }
+
+  function goToTrip(tripId: number) {
+    highlightTripId.set(tripId)
+    currentPage.set('trips')
+    closeModal()
   }
 </script>
 
@@ -70,7 +100,7 @@
     </button>
   </div>
 
-  <FilterBar {lines} onFilter={onFilter} />
+  <FilterBar {lines} onFilter={onFilter} onKeywordChange={onKeywordChange} />
 
   {#if showUpload}
     <div class="upload-section">
@@ -115,6 +145,30 @@
             <p class="modal-notes">{selectedTicket.notes}</p>
           {/if}
         </div>
+
+        <div class="related-trips">
+          <div class="related-trips-header">
+            <h4>关联出行记录</h4>
+            <span class="related-trips-count">{selectedTicketTrips.length} 条</span>
+          </div>
+          {#if selectedTicketTrips.length === 0}
+            <p class="related-empty">暂无关联出行记录</p>
+          {:else}
+            <ul class="related-trips-list">
+              {#each selectedTicketTrips as trip (trip.id)}
+                <li>
+                  <button class="related-trip-item" onclick={() => goToTrip(trip.id)}>
+                    <span class="rt-line">{trip.line}</span>
+                    <span class="rt-stations">{trip.startStation} → {trip.endStation}</span>
+                    <span class="rt-date">{trip.travelDate}</span>
+                    <span class="rt-arrow">›</span>
+                  </button>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </div>
+
         <button class="modal-delete" onclick={() => { onDeleteTicket(selectedTicket.id); closeModal(); }}>删除</button>
       </div>
     </div>
@@ -298,5 +352,102 @@
 
   .modal-delete:hover {
     background: #FFCDD2;
+  }
+
+  .related-trips {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-gray-light);
+  }
+
+  .related-trips-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .related-trips-header h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .related-trips-count {
+    font-size: 12px;
+    color: var(--color-text-light);
+  }
+
+  .related-empty {
+    font-size: 13px;
+    color: var(--color-text-light);
+    padding: 8px 0;
+  }
+
+  .related-trips-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .related-trips-list > li {
+    padding: 0;
+    margin: 0;
+  }
+
+  .related-trip-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--color-primary-bg);
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.2s;
+    font-size: 13px;
+    font-family: inherit;
+    text-align: left;
+  }
+
+  .related-trip-item:hover {
+    background: #E3F2FD;
+  }
+
+  .rt-line {
+    flex-shrink: 0;
+    padding: 1px 8px;
+    background: var(--color-primary);
+    color: var(--color-white);
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .rt-stations {
+    flex: 1;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .rt-date {
+    flex-shrink: 0;
+    color: var(--color-text-light);
+    font-size: 12px;
+  }
+
+  .rt-arrow {
+    flex-shrink: 0;
+    color: var(--color-primary);
+    font-weight: 700;
+    font-size: 16px;
   }
 </style>

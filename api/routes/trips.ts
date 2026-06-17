@@ -8,6 +8,15 @@ function mapTrip(row: Record<string, unknown>): Trip {
   return {
     id: row.id as number,
     ticketId: row.ticket_id as number | null,
+    ticket: row.ticket_id ? {
+      id: row.ticket_id as number,
+      imageUrl: row.ticket_image_url as string,
+      line: row.ticket_line as string,
+      startStation: row.ticket_start_station as string,
+      endStation: row.ticket_end_station as string,
+      type: row.ticket_type as 'bus' | 'metro',
+      travelDate: row.ticket_travel_date as string,
+    } : null,
     line: row.line as string,
     startStation: row.start_station as string,
     endStation: row.end_station as string,
@@ -28,31 +37,57 @@ tripsRouter.get('/', (req, res) => {
   const conditions: string[] = []
   const params: unknown[] = []
 
+  if (req.query.keyword) {
+    const keyword = `%${req.query.keyword}%`
+    conditions.push('(trips.start_station LIKE ? OR trips.end_station LIKE ? OR trips.notes LIKE ?)')
+    params.push(keyword, keyword, keyword)
+  }
   if (req.query.line) {
-    conditions.push('line = ?')
+    conditions.push('trips.line = ?')
     params.push(req.query.line)
   }
   if (req.query.type) {
-    conditions.push('type = ?')
+    conditions.push('trips.type = ?')
     params.push(req.query.type)
   }
   if (req.query.startDate) {
-    conditions.push('travel_date >= ?')
+    conditions.push('trips.travel_date >= ?')
     params.push(req.query.startDate)
   }
   if (req.query.endDate) {
-    conditions.push('travel_date <= ?')
+    conditions.push('trips.travel_date <= ?')
     params.push(req.query.endDate)
   }
   if (req.query.favorite !== undefined) {
-    conditions.push('favorite = ?')
+    conditions.push('trips.favorite = ?')
     params.push(req.query.favorite === 'true' || req.query.favorite === '1' ? 1 : 0)
+  }
+  if (req.query.ticketId !== undefined) {
+    if (req.query.ticketId === 'null' || req.query.ticketId === '') {
+      conditions.push('trips.ticket_id IS NULL')
+    } else {
+      conditions.push('trips.ticket_id = ?')
+      params.push(Number(req.query.ticketId))
+    }
   }
 
   const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : ''
 
   const total = (db.prepare(`SELECT COUNT(*) as count FROM trips ${where}`).get(...params) as { count: number }).count
-  const rows = db.prepare(`SELECT * FROM trips ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`).all(...params, pageSize, offset) as Record<string, unknown>[]
+  const rows = db.prepare(`
+    SELECT trips.*,
+      tickets.image_url AS ticket_image_url,
+      tickets.line AS ticket_line,
+      tickets.start_station AS ticket_start_station,
+      tickets.end_station AS ticket_end_station,
+      tickets.type AS ticket_type,
+      tickets.travel_date AS ticket_travel_date
+    FROM trips
+    LEFT JOIN tickets ON trips.ticket_id = tickets.id
+    ${where}
+    ORDER BY trips.created_at DESC
+    LIMIT ? OFFSET ?
+  `).all(...params, pageSize, offset) as Record<string, unknown>[]
 
   const response: PaginatedResponse<Trip> = {
     data: rows.map(mapTrip),
@@ -71,7 +106,18 @@ tripsRouter.post('/', (req, res) => {
     VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, 0)
   `).run(line, startStation, endStation, type, travelDate, duration || 0, notes || '')
 
-  const row = db.prepare('SELECT * FROM trips WHERE id = ?').get(Number(result.lastInsertRowid)) as Record<string, unknown>
+  const row = db.prepare(`
+    SELECT trips.*,
+      tickets.image_url AS ticket_image_url,
+      tickets.line AS ticket_line,
+      tickets.start_station AS ticket_start_station,
+      tickets.end_station AS ticket_end_station,
+      tickets.type AS ticket_type,
+      tickets.travel_date AS ticket_travel_date
+    FROM trips
+    LEFT JOIN tickets ON trips.ticket_id = tickets.id
+    WHERE trips.id = ?
+  `).get(Number(result.lastInsertRowid)) as Record<string, unknown>
   res.status(201).json(mapTrip(row))
 })
 
@@ -86,7 +132,18 @@ tripsRouter.put('/:id/favorite', (req, res) => {
   const newFavorite = existing.favorite ? 0 : 1
   db.prepare('UPDATE trips SET favorite = ? WHERE id = ?').run(newFavorite, id)
 
-  const row = db.prepare('SELECT * FROM trips WHERE id = ?').get(id) as Record<string, unknown>
+  const row = db.prepare(`
+    SELECT trips.*,
+      tickets.image_url AS ticket_image_url,
+      tickets.line AS ticket_line,
+      tickets.start_station AS ticket_start_station,
+      tickets.end_station AS ticket_end_station,
+      tickets.type AS ticket_type,
+      tickets.travel_date AS ticket_travel_date
+    FROM trips
+    LEFT JOIN tickets ON trips.ticket_id = tickets.id
+    WHERE trips.id = ?
+  `).get(id) as Record<string, unknown>
   res.json(mapTrip(row))
 })
 
