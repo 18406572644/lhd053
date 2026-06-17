@@ -1,5 +1,7 @@
 <script lang="ts">
   import * as echarts from 'echarts'
+  import { getLineColor as getSubwayLineColor } from '@/data/subwayData'
+  import { currentCity } from '@/stores/app'
 
   type LineHeatmapItem = {
     line: string
@@ -13,19 +15,21 @@
     data: LineHeatmapItem[]
   }>()
 
-  let chartContainer: HTMLDivElement | undefined
-  let chart: echarts.ECharts | null = null
+  let chartContainer: HTMLDivElement | undefined = $state()
+  let chart: echarts.ECharts | null = $state(null)
+  let cityId = $state($currentCity)
 
-  const lineColors: Record<string, string> = {
-    '1号线': '#E53935', '2号线': '#1A5CD6', '3号线': '#FB8C00',
-    '4号线': '#43A047', '5号线': '#8E24AA', '6号线': '#00ACC1',
-    '7号线': '#F4511E', '8号线': '#6D4C41', '9号线': '#5E35B1',
-    '10号线': '#00897B', '13号线': '#FF8F00', '其他': '#757575',
-  }
+  currentCity.subscribe((v) => {
+    cityId = v
+    if (chart) {
+      const option = buildOption()
+      if (option) chart.setOption(option, true)
+    }
+  })
 
   function getLineColor(line: string, type: string): string {
     if (type === 'bus') return '#FB8C00'
-    return lineColors[line] || '#1A5CD6'
+    return getSubwayLineColor(line, cityId)
   }
 
   function buildOption(): echarts.EChartsOption | null {

@@ -1,13 +1,16 @@
 <script lang="ts">
+  import { getLineColor } from '@/data/subwayData'
+  import { currentCity } from '@/stores/app'
+
   let { ticket, onclick }: { ticket: any; onclick?: (t: any) => void } = $props()
 
-  const lineColors: Record<string, string> = {
-    '1号线': '#E53935', '2号线': '#1A5CD6', '3号线': '#FB8C00',
-    '4号线': '#43A047', '5号线': '#8E24AA', '6号线': '#00ACC1',
-    '7号线': '#F4511E', '8号线': '#6D4C41', '9号线': '#5E35B1',
-  }
+  let cityId = $state($currentCity)
 
-  let lineColor = $derived(lineColors[ticket.line] || '#1A5CD6')
+  currentCity.subscribe((v) => {
+    cityId = v
+  })
+
+  let lineColor = $derived(getLineColor(ticket.line, cityId))
 
   let typeLabel = $derived(ticket.type === 'bus' ? '公交' : '地铁')
 </script>

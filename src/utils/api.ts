@@ -99,13 +99,17 @@ export async function fetchPeriodComparison(period?: string) {
   return res.json()
 }
 
-export async function fetchStationHeatmap() {
-  const res = await fetch(`${BASE}/stats/station-heatmap`)
+export async function fetchStationHeatmap(cityId?: string) {
+  const query = new URLSearchParams()
+  if (cityId) query.set('city', cityId)
+  const res = await fetch(`${BASE}/stats/station-heatmap?${query}`)
   return res.json()
 }
 
-export async function fetchSegmentHeatmap() {
-  const res = await fetch(`${BASE}/stats/segment-heatmap`)
+export async function fetchSegmentHeatmap(cityId?: string) {
+  const query = new URLSearchParams()
+  if (cityId) query.set('city', cityId)
+  const res = await fetch(`${BASE}/stats/segment-heatmap?${query}`)
   return res.json()
 }
 
@@ -162,5 +166,26 @@ export async function ocrRecognize(imageFile: File): Promise<{
     method: 'POST',
     body: formData,
   })
+  return res.json()
+}
+
+export async function fetchCities(): Promise<Array<{ id: string; name: string }>> {
+  const res = await fetch(`${BASE}/cities`)
+  return res.json()
+}
+
+export async function fetchCityLines(cityId: string): Promise<{
+  id: string
+  name: string
+  center: { lat: number; lng: number }
+  zoom: number
+  lineColors: Record<string, string>
+  lines: Array<{
+    name: string
+    color: string
+    stations: Array<{ name: string; lat: number; lng: number }>
+  }>
+}> {
+  const res = await fetch(`${BASE}/cities/${cityId}/lines`)
   return res.json()
 }

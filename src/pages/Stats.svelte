@@ -15,6 +15,8 @@
   import LineBubble from '@/components/LineBubble.svelte'
   import PeriodIndicator from '@/components/PeriodIndicator.svelte'
   import SubwayMap from '@/components/SubwayMap.svelte'
+  import { getLineColor } from '@/data/subwayData'
+  import { currentCity } from '@/stores/app'
 
   let overview = $state<any>({})
   let periodData = $state<any[]>([])
@@ -32,11 +34,14 @@
   let activeTab = $state<'trend' | 'heatmap' | 'mapHeatmap'>('trend')
   let heatmapMode = $state<'station' | 'segment'>('station')
   let loading = $state(true)
+  let cityId = $state($currentCity)
 
-  const lineColors: Record<string, string> = {
-    '1号线': '#E53935', '2号线': '#1A5CD6', '3号线': '#FB8C00',
-    '4号线': '#43A047', '5号线': '#8E24AA', '6号线': '#00ACC1',
-    '7号线': '#F4511E', '8号线': '#6D4C41', '9号线': '#5E35B1',
+  currentCity.subscribe((v) => {
+    cityId = v
+  })
+
+  function getLineColorSafe(line: string): string {
+    return getLineColor(line, cityId)
   }
 
   let maxCount = $derived(
@@ -117,7 +122,7 @@
 
   async function loadStationHeatmap() {
     try {
-      const res = await fetchStationHeatmap()
+      const res = await fetchStationHeatmap(cityId)
       stationHeatmap = Array.isArray(res) ? res : []
     } catch {
       stationHeatmap = []
@@ -126,7 +131,7 @@
 
   async function loadSegmentHeatmap() {
     try {
-      const res = await fetchSegmentHeatmap()
+      const res = await fetchSegmentHeatmap(cityId)
       segmentHeatmap = Array.isArray(res) ? res : []
     } catch {
       segmentHeatmap = []
@@ -163,6 +168,12 @@
     period
     loadPeriod()
     loadPeriodComparison()
+  })
+
+  $effect(() => {
+    cityId
+    loadStationHeatmap()
+    loadSegmentHeatmap()
   })
 
   function setTrendChartType(type: 'bar' | 'line') {
@@ -317,11 +328,11 @@
                 {#each topLines as line, i (line.line)}
                   <div class="top-line-item">
                     <span class="line-rank">{i + 1}</span>
-                    <span class="line-name" style="color: {lineColors[line.line] || '#1A5CD6'};">{line.line}</span>
+                    <span class="line-name" style="color: {getLineColorSafe(line.line)};">{line.line}</span>
                     <div class="line-bar-wrapper">
                       <div
                         class="line-bar"
-                        style="width: {maxLineCount > 0 ? ((line.count || 0) / maxLineCount) * 100 : 0}%; background: {lineColors[line.line] || '#1A5CD6'};"
+                        style="width: {maxLineCount > 0 ? ((line.count || 0) / maxLineCount) * 100 : 0}%; background: {getLineColorSafe(line.line)};"
                       ></div>
                     </div>
                     <span class="line-count">{line.count || 0}次</span>
@@ -334,11 +345,11 @@
                 {#each topLines as line, i (line.line)}
                   <div class="top-line-item">
                     <span class="line-rank">{i + 1}</span>
-                    <span class="line-name" style="color: {lineColors[line.line] || '#1A5CD6'};">{line.line}</span>
+                    <span class="line-name" style="color: {getLineColorSafe(line.line)};">{line.line}</span>
                     <div class="line-bar-wrapper">
                       <div
                         class="line-bar"
-                        style="width: {maxLineCount > 0 ? ((line.count || 0) / maxLineCount) * 100 : 0}%; background: {lineColors[line.line] || '#1A5CD6'};"
+                        style="width: {maxLineCount > 0 ? ((line.count || 0) / maxLineCount) * 100 : 0}%; background: {getLineColorSafe(line.line)};"
                       ></div>
                     </div>
                     <span class="line-count">{line.count || 0}次</span>

@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { db } from '../database.js'
-import { stationCoords, findLineByStation, getRouteStations } from '../subwayData.js'
+import { getStationCoords, findLineByStation, getRouteStations } from '../subwayData.js'
 
 export const statsRouter = Router()
 
@@ -181,7 +181,8 @@ statsRouter.get('/period-comparison', (req, res) => {
   })
 })
 
-statsRouter.get('/station-heatmap', (_req, res) => {
+statsRouter.get('/station-heatmap', (req, res) => {
+  const cityId = (req.query.city as string) || 'beijing'
   const stationCountMap: Record<string, number> = {}
 
   const rows = db.prepare(`
@@ -201,7 +202,7 @@ statsRouter.get('/station-heatmap', (_req, res) => {
 
   const result: Array<{ station: string; lat: number; lng: number; count: number }> = []
   for (const [station, count] of Object.entries(stationCountMap)) {
-    const coords = stationCoords[station]
+    const coords = getStationCoords(station, cityId)
     if (coords) {
       result.push({
         station,
@@ -216,7 +217,8 @@ statsRouter.get('/station-heatmap', (_req, res) => {
   res.json(result)
 })
 
-statsRouter.get('/segment-heatmap', (_req, res) => {
+statsRouter.get('/segment-heatmap', (req, res) => {
+  const cityId = (req.query.city as string) || 'beijing'
   const segmentMap: Record<string, { from: string; to: string; line: string; count: number }> = {}
 
   const rows = db.prepare(`
@@ -246,7 +248,7 @@ statsRouter.get('/segment-heatmap', (_req, res) => {
   const result = Object.values(segmentMap).sort((a, b) => b.count - a.count)
 
   const enriched = result.map(seg => {
-    const line = findLineByStation(seg.from, seg.to)
+    const line = findLineByStation(seg.from, seg.to, cityId)
     const stations = line ? getRouteStations(line, seg.from, seg.to) : []
     return {
       ...seg,

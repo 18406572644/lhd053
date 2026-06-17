@@ -3,12 +3,15 @@
   import L from 'leaflet'
   import 'leaflet/dist/leaflet.css'
   import 'leaflet.heat'
+  import { currentCity } from '@/stores/app'
   import {
-    subwayLines,
+    getSubwayLines,
     findLineByStation,
     getRouteStations,
     getLineColor,
     getStationCoords,
+    getCityCenter,
+    getCityZoom,
     type Station,
     type SubwayLine,
   } from '@/data/subwayData'
@@ -21,6 +24,7 @@
     showFullMap?: boolean
     heatmapData?: Array<{ lat: number; lng: number; count: number }>
     highlightSegments?: Array<{ from: string; to: string; line?: string; weight?: number }>
+    cityId?: string
   }
 
   let {
@@ -31,8 +35,10 @@
     showFullMap = false,
     heatmapData = [],
     highlightSegments = [],
+    cityId: propCityId = '',
   }: Props = $props()
 
+  let cityId = $derived(propCityId || $currentCity)
   let containerRef: HTMLDivElement | null = null
   let map: L.Map | null = null
   let backgroundLines: L.Polyline[] = []
@@ -43,6 +49,18 @@
   let endMarker: L.Marker | null = null
   let heatLayer: any = null
   let highlightLayers: L.Polyline[] = []
+
+  currentCity.subscribe((v) => {
+    if (!propCityId) {
+      cityId = v
+    }
+  })
+
+  $effect(() => {
+    if (propCityId) {
+      cityId = propCityId
+    }
+  })
 
   function createStationIcon(name: string, isStart: boolean) {
     return L.divIcon({
@@ -59,8 +77,8 @@
   }
 
   function clearMap() {
-    backgroundLines.forEach(l => l.remove())
-    backgroundStations.forEach(s => s.remove())
+    backgroundLines.forEach((l) => l.remove())
+    backgroundStations.forEach((s) => s.remove())
     backgroundLines = []
     backgroundStations = []
 
@@ -68,7 +86,7 @@
       routeLine.remove()
       routeLine = null
     }
-    routeStations.forEach(s => s.remove())
+    routeStations.forEach((s) => s.remove())
     routeStations = []
 
     if (startMarker) {
@@ -85,13 +103,14 @@
       heatLayer = null
     }
 
-    highlightLayers.forEach(l => l.remove())
+    highlightLayers.forEach((l) => l.remove())
     highlightLayers = []
   }
 
   function drawBackgroundLines() {
-    subwayLines.forEach(line => {
-      const coords = line.stations.map(s => [s.lat, s.lng] as [number, number])
+    const subwayLines = getSubwayLines(cityId)
+    subwayLines.forEach((line) => {
+      const coords = line.stations.map((s) => [s.lat, s.lng] as [number, number])
       const polyline = L.polyline(coords, {
         color: line.color,
         weight: 3,
@@ -105,8 +124,9 @@
   }
 
   function drawBackgroundStations() {
-    subwayLines.forEach(line => {
-      line.stations.forEach(station => {
+    const subwayLines = getSubwayLines(cityId)
+    subwayLines.forEach((line) => {
+      line.stations.forEach((station) => {
         const marker = L.circleMarker([station.lat, station.lng], {
           radius: 2,
           color: line.color,
@@ -124,21 +144,22 @@
   function drawRoute() {
     if (!startStation || !endStation) return
 
+    const subwayLines = getSubwayLines(cityId)
     let line: SubwayLine | null = null
     if (lineName) {
-      line = subwayLines.find(l => l.name === lineName) || null
+      line = subwayLines.find((l) => l.name === lineName) || null
     }
     if (!line) {
-      line = findLineByStation(startStation, endStation)
+      line = findLineByStation(startStation, endStation, cityId)
     }
 
-    const startCoords = getStationCoords(startStation)
-    const endCoords = getStationCoords(endStation)
+    const startCoords = getStationCoords(startStation, cityId)
+    const endCoords = getStationCoords(endStation, cityId)
 
     if (line) {
       const stations = getRouteStations(line, startStation, endStation)
       if (stations.length > 0) {
-        const coords = stations.map(s => [s.lat, s.lng] as [number, number])
+        const coords = stations.map((s) => [s.lat, s.lng] as [number, number])
         routeLine = L.polyline(coords, {
           color: line.color,
           weight: 6,
@@ -148,7 +169,7 @@
         })
         routeLine.addTo(map!)
 
-        stations.forEach(station => {
+        stations.forEach((station) => {
           const marker = L.circleMarker([station.lat, station.lng], {
             radius: 4,
             color: line!.color,
@@ -184,8 +205,8 @@
   function drawHeatmap() {
     if (heatmapData.length === 0) return
 
-    const maxCount = Math.max(...heatmapData.map(d => d.count), 1)
-    const points = heatmapData.map(d => [d.lat, d.lng, d.count / maxCount] as [number, number, number])
+    const maxCount = Math.max(...heatmapData.map((d) => d.count), 1)
+    const points = heatmapData.map((d) => [d.lat, d.lng, d.count / maxCount] as [number, number, number])
 
     heatLayer = (L as any).heatLayer(points, {
       radius: 25,
@@ -196,28 +217,29 @@
     })
     heatLayer.addTo(map!)
 
-    const bounds = L.latLngBounds(heatmapData.map(d => [d.lat, d.lng] as [number, number]))
+    const bounds = L.latLngBounds(heatmapData.map((d) => [d.lat, d.lng] as [number, number]))
     if (bounds.isValid()) {
       map!.fitBounds(bounds, { padding: [50, 50] })
     }
   }
 
   function drawHighlightSegments() {
-    highlightSegments.forEach(seg => {
-      const fromCoords = getStationCoords(seg.from)
-      const toCoords = getStationCoords(seg.to)
+    const subwayLines = getSubwayLines(cityId)
+    highlightSegments.forEach((seg) => {
+      const fromCoords = getStationCoords(seg.from, cityId)
+      const toCoords = getStationCoords(seg.to, cityId)
       if (!fromCoords || !toCoords) return
 
       const line = seg.line
-        ? subwayLines.find(l => l.name === seg.line)
-        : findLineByStation(seg.from, seg.to)
+        ? subwayLines.find((l) => l.name === seg.line)
+        : findLineByStation(seg.from, seg.to, cityId)
       const color = line ? line.color : '#F44336'
       const weight = seg.weight || 5
 
       const coords: [number, number][] = []
       if (line) {
         const routeStations = getRouteStations(line, seg.from, seg.to)
-        routeStations.forEach(s => coords.push([s.lat, s.lng]))
+        routeStations.forEach((s) => coords.push([s.lat, s.lng]))
       } else {
         coords.push([fromCoords.lat, fromCoords.lng])
         coords.push([toCoords.lat, toCoords.lng])
@@ -235,6 +257,13 @@
     })
   }
 
+  function updateMapCenter() {
+    if (!map) return
+    const center = getCityCenter(cityId)
+    const zoom = getCityZoom(cityId)
+    map.setView([center.lat, center.lng], zoom)
+  }
+
   function render() {
     if (!map) return
     clearMap()
@@ -250,9 +279,9 @@
       drawBackgroundLines()
       drawHighlightSegments()
       const allCoords: [number, number][] = []
-      highlightSegments.forEach(seg => {
-        const from = getStationCoords(seg.from)
-        const to = getStationCoords(seg.to)
+      highlightSegments.forEach((seg) => {
+        const from = getStationCoords(seg.from, cityId)
+        const to = getStationCoords(seg.to, cityId)
         if (from) allCoords.push([from.lat, from.lng])
         if (to) allCoords.push([to.lat, to.lng])
       })
@@ -268,9 +297,12 @@
   onMount(() => {
     if (!containerRef) return
 
+    const center = getCityCenter(cityId)
+    const zoom = getCityZoom(cityId)
+
     map = L.map(containerRef, {
-      center: [39.9087, 116.3975],
-      zoom: 12,
+      center: [center.lat, center.lng],
+      zoom: zoom,
       zoomControl: false,
       attributionControl: false,
       dragging: true,
@@ -291,6 +323,12 @@
       map.remove()
       map = null
     }
+  })
+
+  $effect(() => {
+    cityId
+    updateMapCenter()
+    render()
   })
 
   $effect(() => {

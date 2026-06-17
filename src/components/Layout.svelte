@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { currentPage } from '@/stores/app'
+  import { currentPage, currentCity } from '@/stores/app'
+  import { cities } from '@/data/subwayData'
+  import { onMount } from 'svelte'
 
   const tabs = [
     { key: 'tickets' as const, label: '票根存档' },
@@ -8,14 +10,43 @@
   ]
 
   let page = $state<'tickets' | 'trips' | 'stats'>('tickets')
+  let selectedCity = $state($currentCity)
+  let cityDropdownOpen = $state(false)
 
   currentPage.subscribe((v) => {
     page = v
   })
 
+  currentCity.subscribe((v) => {
+    selectedCity = v
+  })
+
   function setTab(key: 'tickets' | 'trips' | 'stats') {
     currentPage.set(key)
   }
+
+  function setCity(cityId: string) {
+    currentCity.set(cityId)
+    cityDropdownOpen = false
+  }
+
+  function toggleDropdown() {
+    cityDropdownOpen = !cityDropdownOpen
+  }
+
+  function getCurrentCityName(): string {
+    const city = cities.find((c) => c.id === selectedCity)
+    return city ? city.name : '北京'
+  }
+
+  onMount(() => {
+    document.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('.city-selector')) {
+        cityDropdownOpen = false
+      }
+    })
+  })
 
   let { children } = $props<{ children: any }>()
 </script>
@@ -26,6 +57,26 @@
       <div class="brand">
         <span class="brand-icon">🚇</span>
         <h1 class="brand-title">票根存档</h1>
+      </div>
+      <div class="city-selector">
+        <button class="city-selector-btn" onclick={toggleDropdown}>
+          <span class="city-icon">📍</span>
+          <span class="city-name">{getCurrentCityName()}</span>
+          <span class="city-arrow" class:open={cityDropdownOpen}>▼</span>
+        </button>
+        {#if cityDropdownOpen}
+          <div class="city-dropdown">
+            {#each cities as city}
+              <button
+                class="city-option"
+                class:active={selectedCity === city.id}
+                onclick={() => setCity(city.id)}
+              >
+                {city.name}
+              </button>
+            {/each}
+          </div>
+        {/if}
       </div>
       <nav class="nav">
         {#each tabs as tab}
@@ -121,6 +172,75 @@
   .nav-tab.active {
     color: var(--color-primary);
     background: var(--color-white);
+    font-weight: 600;
+  }
+
+  .city-selector {
+    position: relative;
+  }
+
+  .city-selector-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--color-white);
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+
+  .city-selector-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .city-icon {
+    font-size: 16px;
+  }
+
+  .city-arrow {
+    font-size: 10px;
+    transition: transform 0.2s;
+  }
+
+  .city-arrow.open {
+    transform: rotate(180deg);
+  }
+
+  .city-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 120px;
+    background: var(--color-white);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    z-index: 1000;
+  }
+
+  .city-option {
+    display: block;
+    width: 100%;
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 14px;
+    color: var(--color-text-primary);
+    background: transparent;
+    transition: all 0.15s;
+    cursor: pointer;
+  }
+
+  .city-option:hover {
+    background: var(--color-bg-secondary);
+  }
+
+  .city-option.active {
+    background: var(--color-primary-light);
+    color: var(--color-primary);
     font-weight: 600;
   }
 
