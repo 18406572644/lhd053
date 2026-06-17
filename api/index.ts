@@ -11,7 +11,7 @@ import './database.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const app = express()
-const PORT = 3001
+const PORT = process.env.PORT ? Number(process.env.PORT) : 6053
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {

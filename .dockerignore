@@ -1,0 +1,12 @@
+node_modules
+dist
+.git
+.gitignore
+.vscode
+.trae
+transit-ticket
+api
+docker-compose.yml
+Dockerfile
+.dockerignore
+*.md
